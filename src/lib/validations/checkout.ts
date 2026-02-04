@@ -23,4 +23,5 @@ export const checkoutSchema = z.object({
 );
 
 export type ShippingAddressFormData = z.infer<typeof shippingAddressSchema>;
-export type CheckoutFormData = z.infer<typeof checkoutSchema>;
+// Use the schema input type for React Hook Form values to match zodResolver's resolver signature.
+export type CheckoutFormData = z.input<typeof checkoutSchema>;

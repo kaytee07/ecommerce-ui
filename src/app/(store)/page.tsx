@@ -69,7 +69,7 @@ export default function HomePage() {
       // Fetch inventory for all products to show stock status
       const allProducts = [...featured, ...arrivals];
       if (allProducts.length > 0) {
-        const uniqueIds = [...new Set(allProducts.map((p) => p.id))];
+        const uniqueIds = Array.from(new Set(allProducts.map((p) => p.id)));
         const invMap = await fetchBatchInventory(uniqueIds);
         setInventoryMap(invMap);
       }

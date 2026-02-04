@@ -10,15 +10,38 @@
       "page": "/",
       "matchers": [
         {
-          "regexp": "^/.*$",
-          "originalSource": "/:path*"
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/account(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(.json)?[\\/#\\?]?$",
+          "originalSource": "/account/:path*"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/admin(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(.json)?[\\/#\\?]?$",
+          "originalSource": "/admin/:path*"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/login(.json)?[\\/#\\?]?$",
+          "originalSource": "/login"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/register(.json)?[\\/#\\?]?$",
+          "originalSource": "/register"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/forgot-password(.json)?[\\/#\\?]?$",
+          "originalSource": "/forgot-password"
+        },
+        {
+          "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/reset-password(.json)?[\\/#\\?]?$",
+          "originalSource": "/reset-password"
         }
       ],
       "wasm": [],
       "assets": [],
       "env": {
-        "__NEXT_BUILD_ID": "development",
-        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "znIb/2wqlu044TUsLtXKcP25kRXaRkdP8iJW61FAIzA="
+        "__NEXT_BUILD_ID": "neRArjDHmxVjvBmSEp_Vx",
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "zjCMG4PTQFJOk91ZskHP29PfVDmVfE3uerWZCTH6JYs=",
+        "__NEXT_PREVIEW_MODE_ID": "2b2e65f55c301c1aa47ecbd1cdfc633e",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "7dfca538128141d886ef4e6a18002506d45423a521f5a669aa635cc0bf5ea0d1",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "b51ec77149bfbeae920dd181245d0c255c04bb02f2c3a1511319355641fbddb2"
       }
     }
   },

@@ -30,7 +30,7 @@ interface AttributeTemplate {
 interface ProductOptionGroup {
   name: string;
   values: string[];
-  required?: boolean;
+  required: boolean;
 }
 
 export function ProductAttributeBuilder({
@@ -571,7 +571,7 @@ export function ProductAttributeBuilder({
                   <input
                     type={attr.type === 'number' ? 'number' : 'text'}
                     placeholder="Value (e.g., 2 years)"
-                    value={attr.value}
+                    value={typeof attr.value === 'boolean' ? String(attr.value) : attr.value}
                     onChange={(e) => updateCustomAttribute(index, 'value', e.target.value)}
                     className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary"
                   />

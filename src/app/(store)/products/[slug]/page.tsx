@@ -76,20 +76,19 @@ export default function ProductDetailPage() {
     if (!product?.attributes) return [];
     const options = (product.attributes as { options?: unknown }).options;
     if (!Array.isArray(options)) return [];
-    return options
-      .map((option) => {
-        if (!option || typeof option !== 'object') return null;
-        const name = (option as { name?: unknown }).name;
-        const values = (option as { values?: unknown }).values;
-        const required = (option as { required?: unknown }).required;
-        if (typeof name !== 'string' || !Array.isArray(values)) return null;
-        return {
-          name,
-          values: values.filter((value) => typeof value === 'string') as string[],
-          required: required === true,
-        };
-      })
-      .filter((option): option is ProductOption => Boolean(option));
+    return options.reduce<ProductOption[]>((acc, option) => {
+      if (!option || typeof option !== 'object') return acc;
+      const name = (option as { name?: unknown }).name;
+      const values = (option as { values?: unknown }).values;
+      const required = (option as { required?: unknown }).required;
+      if (typeof name !== 'string' || !Array.isArray(values)) return acc;
+      acc.push({
+        name,
+        values: values.filter((value) => typeof value === 'string') as string[],
+        required: required === true,
+      });
+      return acc;
+    }, []);
   }, [product]);
 
   useEffect(() => {

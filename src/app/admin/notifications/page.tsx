@@ -303,7 +303,7 @@ export default function AdminNotificationsPage() {
           <Filter className="h-4 w-4 text-gray-400" />
           <select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            onChange={(e) => setTypeFilter(e.target.value as NotificationType | 'all')}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
           >
             <option value="all">All Types</option>
@@ -320,7 +320,7 @@ export default function AdminNotificationsPage() {
 
         <select
           value={severityFilter}
-          onChange={(e) => setSeverityFilter(e.target.value)}
+          onChange={(e) => setSeverityFilter(e.target.value as NotificationSeverity | 'all')}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
         >
           <option value="all">All Severity</option>

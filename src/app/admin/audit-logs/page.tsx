@@ -125,12 +125,12 @@ export default function AdminAuditLogsPage() {
   }, [auditLogs, searchQuery]);
 
   const uniqueActions = useMemo(
-    () => [...new Set(auditLogs.map((log) => log.action).filter(Boolean))],
+    () => Array.from(new Set(auditLogs.map((log) => log.action).filter(Boolean))),
     [auditLogs]
   );
 
   const uniqueEntityTypes = useMemo(
-    () => [...new Set(auditLogs.map((log) => log.entityType).filter(Boolean))],
+    () => Array.from(new Set(auditLogs.map((log) => log.entityType).filter(Boolean))),
     [auditLogs]
   );
 
