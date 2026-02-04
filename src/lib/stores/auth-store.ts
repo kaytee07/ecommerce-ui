@@ -7,14 +7,19 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isRefreshing: boolean;
 
   setUser: (user: User | null) => void;
   login: (credentials: LoginRequest) => Promise<AuthResponse>;
   register: (data: RegisterRequest) => Promise<User>;
   logout: () => Promise<void>;
-  refreshToken: () => Promise<void>;
+  refreshToken: () => Promise<boolean>;
   checkAuth: () => Promise<void>;
 }
+
+// Flag to prevent concurrent refresh attempts across the entire app
+let isRefreshingGlobal = false;
+let refreshPromise: Promise<boolean> | null = null;
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -22,6 +27,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: true,
+      isRefreshing: false,
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
 
@@ -54,40 +60,79 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        // Clear local state immediately
+        set({ user: null, isAuthenticated: false, isRefreshing: false });
+
+        // Reset global refresh state
+        isRefreshingGlobal = false;
+        refreshPromise = null;
+
+        // Try to notify backend to clear cookies, but don't wait or fail on error
+        // This is a "fire and forget" operation since we've already cleared local state
         try {
-          // This will clear the HttpOnly cookies on the backend
-          await apiClient.post('/auth/logout');
+          await apiClient.post('/auth/logout').catch(() => {
+            // Silently ignore - cookies might already be invalid
+          });
         } catch {
-          // Ignore logout errors
-        } finally {
-          set({ user: null, isAuthenticated: false });
+          // Ignore all errors
         }
       },
 
-      refreshToken: async () => {
-        try {
-          // Refresh token is also in HttpOnly cookie, sent automatically
-          await apiClient.post('/auth/refresh');
-          // After refresh, verify by getting user info
-          const response = await apiClient.get<{ status: boolean; data: User; message: string }>('/auth/me');
-          set({ user: response.data.data, isAuthenticated: true });
-        } catch {
-          set({ user: null, isAuthenticated: false });
+      refreshToken: async (): Promise<boolean> => {
+        // If already refreshing globally, wait for that refresh to complete
+        if (isRefreshingGlobal && refreshPromise) {
+          return refreshPromise;
         }
+
+        // Start refresh
+        isRefreshingGlobal = true;
+        set({ isRefreshing: true });
+
+        refreshPromise = (async () => {
+          try {
+            // Refresh token is also in HttpOnly cookie, sent automatically
+            await apiClient.post('/auth/refresh');
+
+            // After refresh, verify by getting user info
+            const response = await apiClient.get<{ status: boolean; data: User; message: string }>('/auth/me');
+            set({ user: response.data.data, isAuthenticated: true, isRefreshing: false });
+
+            return true;
+          } catch (error) {
+            // Refresh failed - clear auth state
+            set({ user: null, isAuthenticated: false, isRefreshing: false });
+            return false;
+          } finally {
+            // Reset global refresh state
+            isRefreshingGlobal = false;
+            refreshPromise = null;
+          }
+        })();
+
+        return refreshPromise;
       },
 
       checkAuth: async () => {
+        // Prevent concurrent checkAuth calls
+        if (get().isLoading && get().isRefreshing) {
+          return;
+        }
+
         set({ isLoading: true });
+
         try {
           // Try to get user info - if cookies are valid, this will succeed
           const response = await apiClient.get<{ status: boolean; data: User; message: string }>('/auth/me');
           set({ user: response.data.data, isAuthenticated: true, isLoading: false });
-        } catch {
-          // Token might be expired, try to refresh
-          try {
-            await get().refreshToken();
-          } catch {
+        } catch (error) {
+          // Token might be expired, try to refresh once
+          const refreshed = await get().refreshToken();
+
+          if (!refreshed) {
+            // Refresh failed, user needs to login again
             set({ user: null, isAuthenticated: false, isLoading: false });
+          } else {
+            set({ isLoading: false });
           }
         }
       },

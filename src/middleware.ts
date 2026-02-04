@@ -2,13 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Routes that require authentication
-const protectedPaths = ['/account', '/checkout'];
+const protectedPaths = ['/account'];
 
 // Routes that require admin role
 const adminPaths = ['/admin'];
 
-// Routes that should redirect to home if already authenticated
-const authPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -19,13 +17,6 @@ export function middleware(request: NextRequest) {
 
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
   const isAdmin = adminPaths.some((p) => pathname.startsWith(p));
-  const isAuth = authPaths.some((p) => pathname === p);
-
-  // Redirect authenticated users away from auth pages
-  if (isAuth && token) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
   // Redirect unauthenticated users to login for protected routes
   if ((isProtected || isAdmin) && !token) {
     const loginUrl = new URL('/login', request.url);
@@ -40,7 +31,6 @@ export const config = {
   matcher: [
     // Protected routes
     '/account/:path*',
-    '/checkout/:path*',
     '/admin/:path*',
     // Auth routes
     '/login',

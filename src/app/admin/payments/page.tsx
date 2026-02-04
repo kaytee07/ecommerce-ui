@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api/client';
 import { Button, Skeleton } from '@/components/ui';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, formatOrderNumber, cn } from '@/lib/utils';
 import {
   CreditCard,
   Search,
@@ -14,20 +15,23 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  AlertCircle,
 } from 'lucide-react';
+import { useAuthStore } from '@/lib/stores';
+import { getPermissions } from '@/lib/auth/permissions';
 
 interface Payment {
   id: string;
   orderId: string;
-  orderNumber: string;
-  customerName: string;
-  customerEmail: string;
+  orderNumber?: string;
+  orderCode?: string;
+  userId: string;
+  customerUsername?: string;
+  customerName?: string;
   amount: number;
   currency: string;
   gateway: string;
   status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
-  transactionRef: string;
+  transactionRef?: string;
   createdAt: string;
 }
 
@@ -39,19 +43,26 @@ const statusConfig = {
 };
 
 export default function AdminPaymentsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const permissions = useMemo(
+    () => (user ? getPermissions(user.roles) : null),
+    [user?.roles?.join('|')]
+  );
+  const lastFetchKeyRef = useRef<string | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [usernamesById, setUsernamesById] = useState<Record<string, string>>({});
+  const usersFetchedRef = useRef(false);
 
-  useEffect(() => {
-    fetchPayments();
-  }, [statusFilter]);
-
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     setIsLoading(true);
+    setActionError(null);
     try {
       const endpoint =
         statusFilter === 'all'
@@ -61,107 +72,81 @@ export default function AdminPaymentsPage() {
       setPayments(response.data.data?.content || response.data.data || []);
     } catch (err) {
       console.error('Failed to fetch payments', err);
-      // Demo data
-      setPayments([
-        {
-          id: '1',
-          orderId: 'ord-1',
-          orderNumber: 'ORD-2026-001234',
-          customerName: 'John Doe',
-          customerEmail: 'john@example.com',
-          amount: 299.99,
-          currency: 'GHS',
-          gateway: 'HUBTEL',
-          status: 'SUCCESS',
-          transactionRef: 'HBT-123456789',
-          createdAt: '2026-01-15T10:30:00Z',
-        },
-        {
-          id: '2',
-          orderId: 'ord-2',
-          orderNumber: 'ORD-2026-001235',
-          customerName: 'Jane Smith',
-          customerEmail: 'jane@example.com',
-          amount: 149.50,
-          currency: 'GHS',
-          gateway: 'PAYSTACK',
-          status: 'PENDING',
-          transactionRef: 'PSK-987654321',
-          createdAt: '2026-01-15T11:00:00Z',
-        },
-        {
-          id: '3',
-          orderId: 'ord-3',
-          orderNumber: 'ORD-2026-001236',
-          customerName: 'Bob Wilson',
-          customerEmail: 'bob@example.com',
-          amount: 450.00,
-          currency: 'GHS',
-          gateway: 'HUBTEL',
-          status: 'FAILED',
-          transactionRef: 'HBT-111222333',
-          createdAt: '2026-01-14T15:20:00Z',
-        },
-        {
-          id: '4',
-          orderId: 'ord-4',
-          orderNumber: 'ORD-2026-001237',
-          customerName: 'Alice Brown',
-          customerEmail: 'alice@example.com',
-          amount: 89.99,
-          currency: 'GHS',
-          gateway: 'HUBTEL',
-          status: 'REFUNDED',
-          transactionRef: 'HBT-444555666',
-          createdAt: '2026-01-13T09:45:00Z',
-        },
-      ]);
+      setPayments([]);
+      setActionError('Failed to load payments.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [statusFilter]);
+
+  const fetchUsernames = useCallback(async () => {
+    if (usersFetchedRef.current) return;
+    try {
+      const params = new URLSearchParams();
+      params.set('size', '1000');
+      const response = await apiClient.get(`/admin/users?${params.toString()}`);
+      const users = response.data.data?.content || response.data.data || [];
+      const map: Record<string, string> = {};
+      users.forEach((u: { id?: string; username?: string }) => {
+        if (u?.id && u?.username) {
+          map[u.id] = u.username;
+        }
+      });
+      setUsernamesById(map);
+      usersFetchedRef.current = true;
+    } catch (err) {
+      console.error('Failed to fetch users for payment display', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!permissions?.canViewPayments) {
+      router.push('/admin');
+      return;
+    }
+    const key = `${user.id || user.username || 'user'}:${statusFilter}`;
+    if (lastFetchKeyRef.current === key) return;
+    lastFetchKeyRef.current = key;
+    fetchPayments();
+  }, [statusFilter, user, permissions?.canViewPayments, router, fetchPayments]);
+
+  useEffect(() => {
+    const hasMissingUsernames = payments.some(
+      (payment) => payment.userId && !usernamesById[payment.userId]
+    );
+    if (hasMissingUsernames) {
+      fetchUsernames();
+    }
+  }, [payments, usernamesById, fetchUsernames]);
 
   const handleVerify = async (paymentId: string) => {
     setProcessingId(paymentId);
+    setActionError(null);
     try {
       await apiClient.post(`/admin/payments/${paymentId}/verify`);
       fetchPayments();
     } catch (err) {
       console.error('Failed to verify payment', err);
+      setActionError('Failed to verify payment.');
     } finally {
       setProcessingId(null);
     }
   };
 
-  const handleRefund = async (paymentId: string) => {
-    if (!confirm('Are you sure you want to refund this payment?')) return;
-
-    setProcessingId(paymentId);
-    try {
-      await apiClient.post(`/admin/payments/${paymentId}/refund`, {
-        reason: 'Admin initiated refund',
-      });
-      setPayments((prev) =>
-        prev.map((p) => (p.id === paymentId ? { ...p, status: 'REFUNDED' as const } : p))
-      );
-    } catch (err) {
-      console.error('Failed to refund payment', err);
-      // Demo: update locally
-      setPayments((prev) =>
-        prev.map((p) => (p.id === paymentId ? { ...p, status: 'REFUNDED' as const } : p))
-      );
-    } finally {
-      setProcessingId(null);
-      setSelectedPayment(null);
-    }
-  };
-
-  const filteredPayments = payments.filter(
-    (p) =>
-      p.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.transactionRef.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPayments = payments.filter((p) => {
+    const q = searchQuery.toLowerCase();
+    const customerLabel =
+      p.customerUsername ||
+      p.customerName ||
+      usernamesById[p.userId] ||
+      p.userId;
+    return (
+      p.orderId.toLowerCase().includes(q) ||
+      customerLabel.toLowerCase().includes(q) ||
+      (p.transactionRef || '').toLowerCase().includes(q)
+    );
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB', {
@@ -172,6 +157,10 @@ export default function AdminPaymentsPage() {
       minute: '2-digit',
     });
   };
+
+  if (user && !permissions?.canViewPayments) {
+    return null;
+  }
 
   if (isLoading) {
     return (
@@ -191,6 +180,12 @@ export default function AdminPaymentsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -234,17 +229,25 @@ export default function AdminPaymentsPage() {
             <div className="space-y-4">
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-500">Transaction Ref</span>
-                <span className="font-mono">{selectedPayment.transactionRef}</span>
+                <span className="font-mono">{selectedPayment.transactionRef || '—'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-500">Order</span>
-                <span className="font-medium">{selectedPayment.orderNumber}</span>
+                <span className="font-medium">
+                  {selectedPayment.orderNumber || selectedPayment.orderCode
+                    ? formatOrderNumber(selectedPayment.orderNumber || selectedPayment.orderCode || '')
+                    : selectedPayment.orderId.slice(0, 8).toUpperCase()}
+                </span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-500">Customer</span>
                 <div className="text-right">
-                  <p className="font-medium">{selectedPayment.customerName}</p>
-                  <p className="text-sm text-gray-500">{selectedPayment.customerEmail}</p>
+                  <p className="font-medium">
+                    {selectedPayment.customerUsername ||
+                      selectedPayment.customerName ||
+                      usernamesById[selectedPayment.userId] ||
+                      selectedPayment.userId}
+                  </p>
                 </div>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-100">
@@ -283,17 +286,6 @@ export default function AdminPaymentsPage() {
                 >
                   <RefreshCcw className="h-4 w-4 mr-2" />
                   Verify Payment
-                </Button>
-              )}
-              {selectedPayment.status === 'SUCCESS' && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleRefund(selectedPayment.id)}
-                  disabled={processingId === selectedPayment.id}
-                  className="flex-1 text-error border-error hover:bg-error/10"
-                >
-                  <RefreshCcw className="h-4 w-4 mr-2" />
-                  Process Refund
                 </Button>
               )}
               <Button variant="outline" onClick={() => setSelectedPayment(null)} className="flex-1">
@@ -347,17 +339,26 @@ export default function AdminPaymentsPage() {
               ) : (
                 filteredPayments.map((payment) => {
                   const StatusIcon = statusConfig[payment.status].icon;
+                  const orderCode = payment.orderNumber || payment.orderCode
+                    ? formatOrderNumber(payment.orderNumber || payment.orderCode || '')
+                    : payment.orderId.slice(0, 8).toUpperCase();
                   return (
                     <tr key={payment.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <span className="font-mono text-sm">{payment.transactionRef}</span>
+                        <span className="font-mono text-sm">{payment.transactionRef || '—'}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-medium">{payment.orderNumber}</span>
+                        <span className="text-sm font-medium">
+                          {orderCode}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-gray-900">{payment.customerName}</p>
-                        <p className="text-xs text-gray-500">{payment.customerEmail}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {payment.customerUsername ||
+                            payment.customerName ||
+                            usernamesById[payment.userId] ||
+                            payment.userId}
+                        </p>
                       </td>
                       <td className="px-6 py-4 text-right font-semibold">
                         {formatCurrency(payment.amount)}

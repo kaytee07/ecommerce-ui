@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '@/lib/stores';
 import { registerSchema, type RegisterFormData } from '@/lib/validations';
 import { Button, Input } from '@/components/ui';
+import { OAuthButtons } from '@/components/auth/oauth-buttons';
 import { Eye, EyeOff, Check } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -89,6 +90,16 @@ export default function RegisterPage() {
           {error}
         </div>
       )}
+
+      <div className="mb-6">
+        <OAuthButtons />
+      </div>
+
+      <div className="flex items-center gap-3 mb-6">
+        <div className="h-px flex-1 bg-gray-200" />
+        <span className="text-xs text-gray-500 uppercase tracking-wide">Or</span>
+        <div className="h-px flex-1 bg-gray-200" />
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input

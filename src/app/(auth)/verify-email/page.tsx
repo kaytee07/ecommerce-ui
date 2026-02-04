@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
@@ -14,6 +14,7 @@ function VerifyEmailContent() {
 
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'no-token'>('loading');
   const [message, setMessage] = useState('');
+  const lastTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -22,6 +23,10 @@ function VerifyEmailContent() {
       return;
     }
 
+    if (lastTokenRef.current === token) {
+      return;
+    }
+    lastTokenRef.current = token;
     verifyEmail(token);
   }, [token]);
 

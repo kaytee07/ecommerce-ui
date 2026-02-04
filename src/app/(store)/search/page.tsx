@@ -6,14 +6,16 @@ import { useSearchParams } from 'next/navigation';
 import { ProductCard } from '@/components/products';
 import { ProductGridSkeleton, EmptySearchResults } from '@/components/ui';
 import { apiClient } from '@/lib/api/client';
-import { Product, Page } from '@/types';
+import { Product, Inventory } from '@/types';
 import { Search } from 'lucide-react';
+import { fetchBatchInventory } from '@/lib/utils';
 
 function SearchContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [inventoryMap, setInventoryMap] = useState<Map<string, Inventory>>(new Map());
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -22,6 +24,7 @@ function SearchContent() {
       fetchProducts();
     } else {
       setProducts([]);
+      setInventoryMap(new Map());
       setIsLoading(false);
     }
   }, [query]);
@@ -29,12 +32,22 @@ function SearchContent() {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get<{ status: boolean; data: Page<Product>; message: string }>(
+      const response = await apiClient.get<{ status: boolean; data: Product[]; message: string }>(
         `/store/products/search?q=${encodeURIComponent(query)}&size=24`
       );
       // IMPORTANT: Always use optional chaining + fallback to prevent undefined errors
-      setProducts(response.data.data?.content || []);
-      setTotalElements(response.data.data?.totalElements || 0);
+      const items = response.data.data || [];
+      setProducts(items);
+      setTotalElements(items.length);
+
+      // Fetch inventory for search results
+      if (items.length > 0) {
+        const productIds = items.map((p) => p.id);
+        const invMap = await fetchBatchInventory(productIds);
+        setInventoryMap(invMap);
+      } else {
+        setInventoryMap(new Map());
+      }
     } catch (err) {
       console.error('Failed to search products', err);
     } finally {
@@ -85,7 +98,11 @@ function SearchContent() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              inventory={inventoryMap.get(product.id)}
+            />
           ))}
         </div>
       )}

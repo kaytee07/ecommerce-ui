@@ -3,16 +3,19 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { SafeImage } from '@/components/ui';
 import { ArrowRight } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
-import { Product, Category, Page } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { Product, Category, Page, Inventory, StorefrontBanner } from '@/types';
+import { formatCurrency, getProductOriginalImageUrl, fetchBatchInventory } from '@/lib/utils';
 import { Skeleton } from '@/components/ui';
 
 export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [inventoryMap, setInventoryMap] = useState<Map<string, Inventory>>(new Map());
+  const [banners, setBanners] = useState<StorefrontBanner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -22,23 +25,54 @@ export default function HomePage() {
   const fetchHomePageData = async () => {
     setIsLoading(true);
     try {
-      // Fetch all data in parallel
-      const [categoriesRes, featuredRes, newArrivalsRes] = await Promise.all([
+      const results = await Promise.allSettled([
         apiClient.get<{ status: boolean; data: Category[] }>('/store/categories'),
         apiClient.get<{ status: boolean; data: Product[] }>('/store/products/featured'),
-        apiClient.get<{ status: boolean; data: Page<Product> }>('/store/products/search?size=8&sortBy=createdAt&sortDirection=desc'),
+        apiClient.get<{ status: boolean; data: Page<Product> }>('/store/products?size=8&sortBy=createdAt&sortDirection=desc'),
+        apiClient.get<{ status: boolean; data: StorefrontBanner[] }>('/storefront/banners'),
       ]);
 
-      // IMPORTANT: Always use fallback to prevent undefined errors
-      setCategories(categoriesRes.data.data || []);
-      setFeaturedProducts(featuredRes.data.data || []);
-      setNewArrivals(newArrivalsRes.data.data?.content || []);
-    } catch (err) {
-      console.error('Failed to fetch homepage data', err);
-      // Keep empty arrays on error
-      setCategories([]);
-      setFeaturedProducts([]);
-      setNewArrivals([]);
+      const [categoriesRes, featuredRes, newArrivalsRes, bannersRes] = results;
+
+      if (categoriesRes.status === 'fulfilled') {
+        setCategories(categoriesRes.value.data.data || []);
+      } else {
+        console.error('Failed to fetch categories', categoriesRes.reason);
+        setCategories([]);
+      }
+
+      let featured: Product[] = [];
+      if (featuredRes.status === 'fulfilled') {
+        featured = featuredRes.value.data.data || [];
+        setFeaturedProducts(featured);
+      } else {
+        console.error('Failed to fetch featured products', featuredRes.reason);
+        setFeaturedProducts([]);
+      }
+
+      let arrivals: Product[] = [];
+      if (newArrivalsRes.status === 'fulfilled') {
+        arrivals = newArrivalsRes.value.data.data?.content || [];
+        setNewArrivals(arrivals);
+      } else {
+        console.error('Failed to fetch new arrivals', newArrivalsRes.reason);
+        setNewArrivals([]);
+      }
+
+      if (bannersRes.status === 'fulfilled') {
+        setBanners(bannersRes.value.data.data || []);
+      } else {
+        console.error('Failed to fetch banners', bannersRes.reason);
+        setBanners([]);
+      }
+
+      // Fetch inventory for all products to show stock status
+      const allProducts = [...featured, ...arrivals];
+      if (allProducts.length > 0) {
+        const uniqueIds = [...new Set(allProducts.map((p) => p.id))];
+        const invMap = await fetchBatchInventory(uniqueIds);
+        setInventoryMap(invMap);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -49,14 +83,65 @@ export default function HomePage() {
     .filter(c => c.active !== false)
     .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
+  const productCountMap = (() => {
+    const byId = new Map<string, Category>();
+    const childrenByParent = new Map<string, Category[]>();
+    categories.forEach((cat) => {
+      byId.set(cat.id, cat);
+      if (cat.parentId) {
+        const children = childrenByParent.get(cat.parentId) || [];
+        children.push(cat);
+        childrenByParent.set(cat.parentId, children);
+      }
+    });
+
+    const cache = new Map<string, number>();
+    const getCount = (id: string): number => {
+      if (cache.has(id)) return cache.get(id) as number;
+      const category = byId.get(id);
+      let total = category?.productCount || 0;
+      const children = childrenByParent.get(id) || [];
+      children.forEach((child) => {
+        total += getCount(child.id);
+      });
+      cache.set(id, total);
+      return total;
+    };
+
+    categories.forEach((cat) => getCount(cat.id));
+    return cache;
+  })();
+
+  const defaultPrimaryBanner: StorefrontBanner = {
+    id: 'default-primary',
+    slot: 'PRIMARY',
+    eyebrow: 'New Collection',
+    headline: 'Define Your Own Rules',
+    subheadline: 'Bold streetwear for those who refuse to conform. Made in Ghana, worn worldwide.',
+    ctaText: 'Shop Collection',
+    ctaLink: '/products',
+    imageUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=1920&q=80',
+    active: true,
+  };
+
+  const activeBanners = banners.filter((banner) => banner.active !== false);
+  const primaryBanner = activeBanners.find((banner) => banner.slot === 'PRIMARY') || defaultPrimaryBanner;
+  const secondaryBanner = activeBanners.find((banner) => banner.slot === 'SECONDARY');
+
+  const primaryHeadline = primaryBanner.headline || defaultPrimaryBanner.headline || '';
+  const headlineWords = primaryHeadline.split(' ').filter(Boolean);
+  const headlineSplitIndex = Math.max(1, Math.ceil(headlineWords.length / 2));
+  const headlineLineOne = headlineWords.slice(0, headlineSplitIndex).join(' ');
+  const headlineLineTwo = headlineWords.slice(headlineSplitIndex).join(' ');
+
   return (
     <div className="min-h-screen bg-cream">
       {/* Hero Section - Vlisco Inspired */}
       <section className="relative h-[90vh] min-h-[600px]">
         <div className="absolute inset-0">
-          <Image
-            src="https://images.unsplash.com/photo-1509631179647-0177331693ae?w=1920&q=80"
-            alt="World Genius Collection"
+          <SafeImage
+            src={primaryBanner.imageUrl || defaultPrimaryBanner.imageUrl || ''}
+            alt={primaryBanner.headline || 'World Genius Collection'}
             fill
             className="object-cover"
             priority
@@ -68,21 +153,25 @@ export default function HomePage() {
           <div className="container-full pb-16 lg:pb-24">
             <div className="max-w-2xl">
               <p className="text-white/80 text-sm tracking-[0.3em] uppercase mb-4">
-                New Collection
+                {primaryBanner.eyebrow || defaultPrimaryBanner.eyebrow}
               </p>
               <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl text-white font-medium tracking-tight leading-none mb-6">
-                Define Your
-                <br />
-                Own Rules
+                {headlineLineOne}
+                {headlineLineTwo ? (
+                  <>
+                    <br />
+                    {headlineLineTwo}
+                  </>
+                ) : null}
               </h1>
               <p className="text-white/80 text-lg mb-8 max-w-md">
-                Bold streetwear for those who refuse to conform. Made in Ghana, worn worldwide.
+                {primaryBanner.subheadline || defaultPrimaryBanner.subheadline}
               </p>
               <Link
-                href="/products"
+                href={primaryBanner.ctaLink || defaultPrimaryBanner.ctaLink || '/products'}
                 className="inline-flex items-center gap-3 bg-white text-primary px-8 py-4 text-sm font-medium tracking-wider uppercase hover:bg-white/90 transition-colors"
               >
-                Shop Collection
+                {primaryBanner.ctaText || defaultPrimaryBanner.ctaText || 'Shop Collection'}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -116,17 +205,18 @@ export default function HomePage() {
                 href={`/categories/${category.slug}`}
                 className="group relative aspect-[3/4] overflow-hidden img-zoom"
               >
-                <Image
-                  src={category.imageUrl || '/placeholder-category.jpg'}
+                <SafeImage
+                  src={category.imageUrl || '/placeholder-category.svg'}
                   alt={category.name}
                   fill
                   className="object-cover"
+                  fallbackSrc="/placeholder-category.svg"
                 />
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
                 <div className="absolute inset-0 flex flex-col justify-end p-6">
                   <h3 className="font-heading text-2xl text-white mb-1">{category.name}</h3>
                   <p className="text-white/80 text-sm tracking-wide">
-                    {category.productCount || 0} Products
+                    {(productCountMap.get(category.id) ?? category.productCount ?? 0)} Products
                   </p>
                 </div>
               </Link>
@@ -174,45 +264,66 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {featuredProducts.slice(0, 8).map((product) => (
-                <Link
-                  key={product.id}
-                  href={`/products/${product.slug}`}
-                  className="group"
-                >
-                  <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
-                    <Image
-                      src={product.images?.[0]?.url || product.imageUrl || '/placeholder.jpg'}
-                      alt={product.name}
-                      fill
-                      className="object-cover"
-                    />
-                    {product.compareAtPrice && (
-                      <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
-                        Sale
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-500 tracking-wider uppercase">
-                      {product.category?.name || product.categoryName}
-                    </p>
-                    <h3 className="font-heading text-lg group-hover:opacity-70 transition-opacity">
-                      {product.name}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
-                        {formatCurrency(product.price)}
-                      </span>
-                      {product.compareAtPrice && (
-                        <span className="text-gray-400 line-through text-sm">
-                          {formatCurrency(product.compareAtPrice)}
+              {featuredProducts.slice(0, 8).map((product) => {
+                const inventory = inventoryMap.get(product.id);
+                const availableQty = inventory?.availableQuantity ?? null;
+                const isOutOfStock = availableQty !== null && availableQty <= 0;
+                const isLowStock = availableQty !== null && availableQty > 0 && availableQty <= 5;
+                return (
+                  <Link
+                    key={product.id}
+                    href={`/products/${product.slug}`}
+                    className="group"
+                  >
+                    <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
+                      <SafeImage
+                        src={getProductOriginalImageUrl(product) || '/placeholder.svg'}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                        fallbackSrc="/placeholder.svg"
+                      />
+                      {product.compareAtPrice && !isOutOfStock && (
+                        <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
+                          Sale
                         </span>
                       )}
+                      {/* Out of Stock Overlay */}
+                      {isOutOfStock && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <span className="px-4 py-2 bg-white text-gray-900 font-medium rounded text-sm">
+                            Out of Stock
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </Link>
-              ))}
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500 tracking-wider uppercase">
+                        {product.category?.name || product.categoryName}
+                      </p>
+                      <h3 className="font-heading text-lg group-hover:opacity-70 transition-opacity">
+                        {product.name}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {formatCurrency(product.price)}
+                        </span>
+                        {product.compareAtPrice && (
+                          <span className="text-gray-400 line-through text-sm">
+                            {formatCurrency(product.compareAtPrice)}
+                          </span>
+                        )}
+                      </div>
+                      {/* Low Stock Warning */}
+                      {isLowStock && !isOutOfStock && (
+                        <p className="text-xs text-orange-600 font-medium">
+                          Only {availableQty} left
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
 
@@ -232,7 +343,7 @@ export default function HomePage() {
       <section className="relative h-[70vh] min-h-[500px]">
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1920&q=80"
+            src={secondaryBanner?.imageUrl || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1920&q=80'}
             alt="World Genius Lookbook"
             fill
             className="object-cover"
@@ -296,36 +407,58 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {newArrivals.slice(0, 4).map((product) => (
-              <Link
-                key={product.id}
-                href={`/products/${product.slug}`}
-                className="group"
-              >
-                <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
-                  <Image
-                    src={product.images?.[0]?.url || product.imageUrl || '/placeholder.jpg'}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                  />
-                  <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
-                    New
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-500 tracking-wider uppercase">
-                    {product.category?.name || product.categoryName}
-                  </p>
-                  <h3 className="font-heading text-lg group-hover:opacity-70 transition-opacity">
-                    {product.name}
-                  </h3>
-                  <span className="font-medium">
-                    {formatCurrency(product.price)}
-                  </span>
-                </div>
-              </Link>
-            ))}
+            {newArrivals.slice(0, 4).map((product) => {
+              const inventory = inventoryMap.get(product.id);
+              const availableQty = inventory?.availableQuantity ?? null;
+              const isOutOfStock = availableQty !== null && availableQty <= 0;
+              const isLowStock = availableQty !== null && availableQty > 0 && availableQty <= 5;
+              return (
+                <Link
+                  key={product.id}
+                  href={`/products/${product.slug}`}
+                  className="group"
+                >
+                  <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
+                    <Image
+                      src={getProductOriginalImageUrl(product) || '/placeholder.svg'}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                    />
+                    {!isOutOfStock && (
+                      <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
+                        New
+                      </span>
+                    )}
+                    {/* Out of Stock Overlay */}
+                    {isOutOfStock && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <span className="px-4 py-2 bg-white text-gray-900 font-medium rounded text-sm">
+                          Out of Stock
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-500 tracking-wider uppercase">
+                      {product.category?.name || product.categoryName}
+                    </p>
+                    <h3 className="font-heading text-lg group-hover:opacity-70 transition-opacity">
+                      {product.name}
+                    </h3>
+                    <span className="font-medium">
+                      {formatCurrency(product.price)}
+                    </span>
+                    {/* Low Stock Warning */}
+                    {isLowStock && !isOutOfStock && (
+                      <p className="text-xs text-orange-600 font-medium">
+                        Only {availableQty} left
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
 

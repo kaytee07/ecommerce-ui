@@ -3,15 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
-import { OrderHistory, OrderStatus } from '@/types';
+import Image from 'next/image';
 import { StatusBadge, EmptyOrders, Skeleton, Select } from '@/components/ui';
-import { formatCurrency, formatDate, formatOrderNumber } from '@/lib/utils';
+import { formatCurrency, formatDate, getProductThumbnailUrl } from '@/lib/utils';
+import { OrderHistory, OrderStatus, Product } from '@/types';
 import { ChevronRight } from 'lucide-react';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Orders' },
   { value: 'PENDING', label: 'Pending' },
-  { value: 'PENDING_PAYMENT', label: 'Awaiting Payment' },
   { value: 'CONFIRMED', label: 'Confirmed' },
   { value: 'PROCESSING', label: 'Processing' },
   { value: 'SHIPPED', label: 'Shipped' },
@@ -24,6 +24,7 @@ export default function OrdersPage() {
   const [filteredOrders, setFilteredOrders] = useState<OrderHistory[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [itemImages, setItemImages] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchOrders();
@@ -36,6 +37,50 @@ export default function OrdersPage() {
       setFilteredOrders(orders);
     }
   }, [orders, statusFilter]);
+
+  useEffect(() => {
+    if (!orders || orders.length === 0) return;
+    const missingIds = orders
+      .map((order) => order.previewProductId)
+      .filter((id): id is string => !!id && !itemImages[id]);
+    if (missingIds.length === 0) return;
+
+    let cancelled = false;
+    const fetchImages = async () => {
+      try {
+        const results = await Promise.all(
+          missingIds.map(async (id) => {
+            try {
+              const res = await apiClient.get<{ status: boolean; data: Product }>(`/store/products/${id}`);
+              return { id, product: res.data.data };
+            } catch {
+              return null;
+            }
+          })
+        );
+        if (cancelled) return;
+        setItemImages((prev) => {
+          const next = { ...prev };
+          results.forEach((result) => {
+            if (result?.product) {
+              const thumb = getProductThumbnailUrl(result.product);
+              if (thumb) {
+                next[result.id] = thumb;
+              }
+            }
+          });
+          return next;
+        });
+      } catch {
+        // ignore
+      }
+    };
+
+    fetchImages();
+    return () => {
+      cancelled = true;
+    };
+  }, [orders, itemImages]);
 
   const fetchOrders = async () => {
     try {
@@ -53,13 +98,13 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Order History</h1>
         <Select
           options={STATUS_OPTIONS}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-48"
+          className="w-full sm:w-48"
         />
       </div>
 
@@ -78,20 +123,35 @@ export default function OrdersPage() {
               <Link
                 key={order.id}
                 href={`/account/orders/${order.id}`}
-                className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+                className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 hover:bg-gray-50 transition-colors"
               >
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <p className="font-semibold text-gray-900">
-                      {formatOrderNumber(order.orderNumber)}
-                    </p>
-                    <StatusBadge status={order.status} />
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="relative w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center text-gray-400 text-xs">
+                    {order.previewProductId && itemImages[order.previewProductId] ? (
+                      <Image
+                        src={itemImages[order.previewProductId]}
+                        alt={order.previewProductName || 'Order item'}
+                        fill
+                        sizes="56px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      'No Image'
+                    )}
                   </div>
-                  <p className="text-sm text-gray-500">
-                    {formatDate(order.createdAt)} • {order.itemCount} item{order.itemCount > 1 ? 's' : ''}
-                  </p>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <p className="font-semibold text-gray-900 truncate">
+                        {order.statusDisplayName || order.id.slice(0, 8).toUpperCase()}
+                      </p>
+                      <StatusBadge status={order.status} />
+                    </div>
+                    <p className="text-sm text-gray-500 truncate">
+                      {formatDate(order.createdAt)} • {order.itemCount} item{order.itemCount > 1 ? 's' : ''}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between gap-3 sm:justify-end">
                   <p className="font-semibold text-gray-900">
                     {formatCurrency(order.totalAmount)}
                   </p>

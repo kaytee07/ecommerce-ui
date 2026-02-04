@@ -1,18 +1,28 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense, useMemo, useRef, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api/client';
-import { Inventory } from '@/types';
+import { Inventory, Product } from '@/types';
 import { Button, Skeleton, Modal, Input } from '@/components/ui';
 import { Search, AlertTriangle, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/lib/stores';
+import { getPermissions } from '@/lib/auth/permissions';
 
 function InventoryContent() {
   const searchParams = useSearchParams();
   const lowStockFilter = searchParams.get('lowStock') === 'true';
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const permissions = useMemo(
+    () => (user ? getPermissions(user.roles) : null),
+    [user?.roles?.join('|')]
+  );
+  const lastFetchKeyRef = useRef<string | null>(null);
 
   const [inventory, setInventory] = useState<Inventory[]>([]);
+  const [productInfoById, setProductInfoById] = useState<Record<string, { name?: string; sku?: string }>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showLowStock, setShowLowStock] = useState(lowStockFilter);
@@ -20,14 +30,11 @@ function InventoryContent() {
     open: false,
     item: null,
   });
-  const [adjustment, setAdjustment] = useState({ amount: 0, reason: '' });
+  const [adjustment, setAdjustment] = useState({ amount: 0, reason: '', adjustmentType: 'ADJUSTMENT' });
   const [isAdjusting, setIsAdjusting] = useState(false);
+  const productsFetchedRef = useRef(false);
 
-  useEffect(() => {
-    fetchInventory();
-  }, [showLowStock]);
-
-  const fetchInventory = async () => {
+  const fetchInventory = useCallback(async () => {
     setIsLoading(true);
     try {
       const endpoint = showLowStock ? '/admin/inventory/low-stock' : '/admin/inventory';
@@ -39,19 +46,63 @@ function InventoryContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showLowStock]);
+
+  const fetchProductInfo = useCallback(async () => {
+    if (productsFetchedRef.current) return;
+    try {
+      const params = new URLSearchParams();
+      params.set('size', '1000');
+      const response = await apiClient.get<{ status: boolean; data: { content?: Product[] } | Product[] }>(
+        `/admin/products?${params.toString()}`
+      );
+      const products = (response.data.data as { content?: Product[] })?.content || response.data.data || [];
+      const map: Record<string, { name?: string; sku?: string }> = {};
+      (products as Product[]).forEach((product) => {
+        if (product?.id) {
+          map[product.id] = { name: product.name, sku: product.sku };
+        }
+      });
+      setProductInfoById(map);
+      productsFetchedRef.current = true;
+    } catch (err) {
+      console.error('Failed to fetch product info for inventory', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!permissions?.canViewInventory) {
+      router.push('/admin');
+      return;
+    }
+    const key = `${user.id || user.username || 'user'}:${showLowStock ? 'low' : 'all'}`;
+    if (lastFetchKeyRef.current === key) return;
+    lastFetchKeyRef.current = key;
+    fetchInventory();
+  }, [showLowStock, user, permissions?.canViewInventory, router, fetchInventory]);
+
+  useEffect(() => {
+    if (inventory.length === 0) return;
+    const hasMissing = inventory.some((item) => !productInfoById[item.productId]);
+    if (hasMissing) {
+      fetchProductInfo();
+    }
+  }, [inventory, productInfoById, fetchProductInfo]);
 
   const handleAdjust = async () => {
     if (!adjustModal.item || !adjustment.reason) return;
+    if (!permissions?.canAdjustInventory) return;
     setIsAdjusting(true);
     try {
       await apiClient.post(`/admin/inventory/${adjustModal.item.productId}/adjust`, {
-        adjustment: adjustment.amount,
+        quantity: adjustment.amount,
+        adjustmentType: adjustment.adjustmentType,
         reason: adjustment.reason,
       });
       await fetchInventory();
       setAdjustModal({ open: false, item: null });
-      setAdjustment({ amount: 0, reason: '' });
+      setAdjustment({ amount: 0, reason: '', adjustmentType: 'ADJUSTMENT' });
     } catch (err) {
       console.error('Failed to adjust inventory', err);
     } finally {
@@ -59,11 +110,19 @@ function InventoryContent() {
     }
   };
 
-  const filteredInventory = (inventory || []).filter(
-    (item) =>
-      (item.productName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.sku || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredInventory = (inventory || []).filter((item) => {
+    const q = searchQuery.toLowerCase();
+    const productInfo = productInfoById[item.productId];
+    return (
+      (item.productId || '').toLowerCase().includes(q) ||
+      (item.productName || productInfo?.name || '').toLowerCase().includes(q) ||
+      (item.sku || productInfo?.sku || '').toLowerCase().includes(q)
+    );
+  });
+
+  if (user && !permissions?.canViewInventory) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -105,9 +164,6 @@ function InventoryContent() {
                   Product
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  SKU
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   In Stock
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -128,28 +184,34 @@ function InventoryContent() {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan={7} className="px-6 py-4">
+                    <td colSpan={6} className="px-6 py-4">
                       <Skeleton className="h-12 w-full" />
                     </td>
                   </tr>
                 ))
               ) : filteredInventory.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    No inventory items found
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    {showLowStock
+                      ? 'No low stock items found'
+                      : 'No inventory records found'}
                   </td>
                 </tr>
               ) : (
                 filteredInventory.map((item) => {
-                  const isLow = item.availableQuantity <= item.lowStockThreshold;
+                  const isLow = item.availableQuantity <= 5;
                   const isOut = item.availableQuantity <= 0;
 
                   return (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <p className="font-medium text-gray-900 line-clamp-1">{item.productName}</p>
+                        <div className="text-sm text-gray-900">
+                          {item.productName || productInfoById[item.productId]?.name || item.productId}
+                        </div>
+                        <div className="text-xs text-gray-500 font-mono">
+                          {item.sku || productInfoById[item.productId]?.sku || '—'}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 font-mono">{item.sku}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
                         {item.stockQuantity}
                       </td>
@@ -184,9 +246,11 @@ function InventoryContent() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
+                            if (!permissions?.canAdjustInventory) return;
                             setAdjustModal({ open: true, item });
-                            setAdjustment({ amount: 0, reason: '' });
+                            setAdjustment({ amount: 0, reason: '', adjustmentType: 'ADJUSTMENT' });
                           }}
+                          disabled={!permissions?.canAdjustInventory}
                         >
                           Adjust
                         </Button>
@@ -211,7 +275,11 @@ function InventoryContent() {
           <div className="space-y-4">
             <div>
               <p className="text-sm text-gray-500">Product</p>
-              <p className="font-medium">{adjustModal.item.productName}</p>
+              <p className="font-medium">
+                {adjustModal.item.productName ||
+                  productInfoById[adjustModal.item.productId]?.name ||
+                  adjustModal.item.productId}
+              </p>
             </div>
 
             <div>
@@ -248,6 +316,23 @@ function InventoryContent() {
               <p className="text-sm text-gray-500 mt-1">
                 New stock: {adjustModal.item.stockQuantity + adjustment.amount}
               </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Adjustment Type
+              </label>
+              <select
+                value={adjustment.adjustmentType}
+                onChange={(e) => setAdjustment((a) => ({ ...a, adjustmentType: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary"
+              >
+                <option value="ADJUSTMENT">Adjustment</option>
+                <option value="RESTOCK">Restock</option>
+                <option value="SALE">Sale</option>
+                <option value="RESERVE">Reserve</option>
+                <option value="RELEASE">Release</option>
+              </select>
             </div>
 
             <Input

@@ -43,7 +43,7 @@ export function Header() {
   const { isAuthenticated, user, logout } = useAuthStore();
   const { cart } = useCartStore();
 
-  const cartCount = cart?.itemCount || 0;
+  const cartCount = cart?.items?.length || 0;
 
   // Check if user has admin role
   const isAdmin = user?.roles?.some(role =>

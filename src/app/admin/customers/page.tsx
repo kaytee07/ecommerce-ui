@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api/client';
 import { useAuthStore } from '@/lib/stores';
 import { Button, Skeleton } from '@/components/ui';
@@ -19,9 +20,11 @@ import {
   UserCog,
   Check,
 } from 'lucide-react';
+import { getPermissions } from '@/lib/auth/permissions';
 
 const AVAILABLE_ROLES = [
   { value: 'ROLE_USER', label: 'Customer', description: 'Regular customer account' },
+  { value: 'ROLE_ADMIN', label: 'Admin', description: 'Can manage users and admin operations' },
   { value: 'ROLE_SUPPORT_AGENT', label: 'Support Agent', description: 'Can view and help with customer issues' },
   { value: 'ROLE_WAREHOUSE', label: 'Warehouse', description: 'Can manage inventory and fulfill orders' },
   { value: 'ROLE_CONTENT_MANAGER', label: 'Content Manager', description: 'Can manage products and categories' },
@@ -43,7 +46,13 @@ interface Customer {
 }
 
 export default function AdminCustomersPage() {
+  const router = useRouter();
   const { user } = useAuthStore();
+  const permissions = useMemo(
+    () => (user ? getPermissions(user.roles) : null),
+    [user?.roles?.join('|')]
+  );
+  const lastFetchKeyRef = useRef<string | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -58,72 +67,30 @@ export default function AdminCustomersPage() {
   // Check if current user is SUPER_ADMIN
   const isSuperAdmin = user?.roles?.includes('ROLE_SUPER_ADMIN');
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.get('/admin/users');
       setCustomers(response.data.data?.content || response.data.data || []);
     } catch (err) {
       console.error('Failed to fetch customers', err);
-      // Demo data
-      setCustomers([
-        {
-          id: '1',
-          username: 'johndoe',
-          email: 'john@example.com',
-          fullName: 'John Doe',
-          phone: '+233201234567',
-          roles: ['ROLE_USER'],
-          emailVerified: true,
-          totalOrders: 12,
-          totalSpent: 2450.00,
-          createdAt: '2025-06-15T10:30:00Z',
-          lastOrderAt: '2026-01-10T14:20:00Z',
-        },
-        {
-          id: '2',
-          username: 'janesmith',
-          email: 'jane@example.com',
-          fullName: 'Jane Smith',
-          phone: '+233209876543',
-          roles: ['ROLE_USER'],
-          emailVerified: true,
-          totalOrders: 8,
-          totalSpent: 1890.50,
-          createdAt: '2025-08-20T09:00:00Z',
-          lastOrderAt: '2026-01-12T11:45:00Z',
-        },
-        {
-          id: '3',
-          username: 'bobwilson',
-          email: 'bob@example.com',
-          fullName: 'Bob Wilson',
-          roles: ['ROLE_USER'],
-          emailVerified: false,
-          totalOrders: 3,
-          totalSpent: 450.00,
-          createdAt: '2025-12-01T15:30:00Z',
-        },
-        {
-          id: '4',
-          username: 'admin',
-          email: 'admin@worldg3nius.com',
-          fullName: 'Admin User',
-          roles: ['ROLE_SUPER_ADMIN'],
-          emailVerified: true,
-          totalOrders: 0,
-          totalSpent: 0,
-          createdAt: '2025-01-01T00:00:00Z',
-        },
-      ]);
+      setCustomers([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!permissions?.canViewUsers) {
+      router.push('/admin');
+      return;
+    }
+    const key = `${user.id || user.username || 'user'}`;
+    if (lastFetchKeyRef.current === key) return;
+    lastFetchKeyRef.current = key;
+    fetchCustomers();
+  }, [user, permissions?.canViewUsers, router, fetchCustomers]);
 
   // Open role assignment modal
   const openRoleModal = (customer: Customer) => {
@@ -214,6 +181,10 @@ export default function AdminCustomersPage() {
     }
     return { label: 'Customer', color: 'bg-gray-100 text-gray-800' };
   };
+
+  if (user && !permissions?.canViewUsers) {
+    return null;
+  }
 
   if (isLoading) {
     return (

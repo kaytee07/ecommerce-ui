@@ -3,12 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/ui';
 import { Skeleton } from '@/components/ui';
 import { apiClient } from '@/lib/api/client';
-import { Product, Page, Category } from '@/types';
-import { dummyProducts, dummyCategories } from '@/lib/data/dummy';
-import { formatCurrency } from '@/lib/utils';
+import { Product, Page, Category, Inventory } from '@/types';
+import { formatCurrency, getProductThumbnailUrl } from '@/lib/utils';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 
 export default function CategoryPage() {
@@ -26,6 +25,23 @@ export default function CategoryPage() {
     fetchData();
   }, [slug, sortBy, sortDirection]);
 
+  const sortProducts = (list: Product[]) => {
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      if (sortBy === 'price') {
+        return (a.price || 0) - (b.price || 0);
+      }
+      if (sortBy === 'name') {
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      const aDate = new Date(a.createdAt).getTime();
+      const bDate = new Date(b.createdAt).getTime();
+      return aDate - bDate;
+    });
+    if (sortDirection === 'desc') sorted.reverse();
+    return sorted;
+  };
+
   const fetchData = async () => {
     setIsLoading(true);
     try {
@@ -33,37 +49,104 @@ export default function CategoryPage() {
       const categoryRes = await apiClient.get<{ status: boolean; data: Category; message: string }>(
         `/store/categories/slug/${slug}`
       );
-      console.log(categoryRes.data.data.id)
 
       if (categoryRes.data.data) {
-        setCategory(categoryRes.data.data);
+        const currentCategory = categoryRes.data.data;
+        setCategory(currentCategory);
 
-        // Then fetch products
-        const productsRes = await apiClient.get<{ status: boolean; data: Page<Product>; message: string }>(
-          `/store/categories/${categoryRes.data.data.id}/products?size=20&sortBy=${sortBy}&sortDirection=${sortDirection}`
+        // Determine descendant categories (if any)
+        let categoryIds = [currentCategory.id];
+        try {
+          const allCategoriesRes = await apiClient.get<{ status: boolean; data: Category[]; message?: string }>(
+            '/store/categories'
+          );
+          const allCategories = allCategoriesRes.data.data || [];
+          const childrenByParent = new Map<string, Category[]>();
+          allCategories.forEach((cat) => {
+            if (cat.parentId) {
+              const children = childrenByParent.get(cat.parentId) || [];
+              children.push(cat);
+              childrenByParent.set(cat.parentId, children);
+            }
+          });
+          const descendantIds: string[] = [];
+          const stack = [...(childrenByParent.get(currentCategory.id) || [])];
+          while (stack.length > 0) {
+            const node = stack.pop();
+            if (!node) continue;
+            descendantIds.push(node.id);
+            const next = childrenByParent.get(node.id) || [];
+            stack.push(...next);
+          }
+          if (descendantIds.length > 0) {
+            categoryIds = [currentCategory.id, ...descendantIds];
+          }
+        } catch (catErr) {
+          console.error('Failed to fetch categories for descendants', catErr);
+        }
+
+        const productResults = await Promise.allSettled(
+          categoryIds.map((id) =>
+            apiClient.get<{ status: boolean; data: Page<Product>; message: string }>(
+              `/store/categories/${id}/products?size=20&sortBy=${sortBy}&sortDirection=${sortDirection}`
+            )
+          )
         );
-        // IMPORTANT: Always use optional chaining + fallback to prevent undefined errors
-        console.log(productsRes.data.data)
-        setProducts(productsRes.data.data.content ?? []);
-        setTotalElements(productsRes.data.data?.totalElements || 0);
+
+        const combinedProducts: Product[] = [];
+        let totalCount = 0;
+        productResults.forEach((result) => {
+          if (result.status !== 'fulfilled') return;
+          const payload = result.value.data.data;
+          combinedProducts.push(...(payload?.content ?? []));
+          totalCount += payload?.totalElements || 0;
+        });
+
+        const productMap = new Map<string, Product>();
+        combinedProducts.forEach((product) => {
+          if (!productMap.has(product.id)) {
+            productMap.set(product.id, product);
+          }
+        });
+
+        const productList = Array.from(productMap.values());
+        const productIds = productList.map((product) => product.id);
+        let inventoryMap = new Map<string, Inventory>();
+
+        if (productIds.length > 0) {
+          try {
+            const inventoryRes = await apiClient.post<{ status: boolean; data: Inventory[]; message: string }>(
+              '/store/inventory/batch',
+              productIds
+            );
+            inventoryMap = new Map(
+              (inventoryRes.data.data || []).map((item) => [item.productId, item])
+            );
+          } catch (invErr) {
+            console.error('Failed to fetch inventory batch', invErr);
+          }
+        }
+
+        const enrichedProducts = productList.map((product) => {
+          const inventory = inventoryMap.get(product.id);
+          if (!inventory) return product;
+          return {
+            ...product,
+            stockQuantity: inventory.availableQuantity,
+          };
+        });
+
+        setProducts(sortProducts(enrichedProducts));
+        setTotalElements(totalCount || enrichedProducts.length);
       } else {
         throw new Error('Category not found');
       }
     } catch (err) {
-      console.error('Failed to fetch from API, using dummy data', err);
-      // Use dummy data as fallback
-      const dummyCategory = dummyCategories.find(c => c.slug === slug);
-      if (dummyCategory) {
-        setCategory(dummyCategory);
-        const categoryProducts = dummyProducts.filter(p => p.category?.slug === slug || p.categoryId === dummyCategory.id);
-        setProducts(categoryProducts);
-        setTotalElements(categoryProducts.length);
-      } else {
-        // Category not found - show empty state
-        setCategory(null);
-        setProducts([]);
-        setTotalElements(0);
-      }
+      console.error('Failed to fetch from API', err);
+      // Category not found or API error - show empty state
+      setCategory(null);
+      setProducts([]);
+      setTotalElements(0);
     } finally {
       setIsLoading(false);
     }
@@ -180,30 +263,36 @@ export default function CategoryPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {products.map((product) => (
-              <Link
-                key={product.id}
-                href={`/products/${product.slug}`}
-                className="group"
-              >
+            {products.map((product) => {
+              const showNew = product.tags?.includes('new');
+              const showSale = Boolean(product.compareAtPrice);
+              return (
+                <Link
+                  key={product.id}
+                  href={`/products/${product.slug}`}
+                  className="group"
+                >
                 <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4 bg-white">
-                  <Image
-                    src={product.images?.[0]?.url || product.imageUrl || '/placeholder.jpg'}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                  />
-                  {product.compareAtPrice && (
-                    <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
-                      Sale
-                    </span>
-                  )}
-                  {product.tags?.includes('new') && (
+                    <SafeImage
+                      src={getProductThumbnailUrl(product) || '/placeholder.svg'}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                      fallbackSrc="/placeholder.svg"
+                    />
+                  {showNew && (
                     <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
                       New
                     </span>
                   )}
-                  {product.stockQuantity <= 0 && (
+                  {showSale && (
+                    <span
+                      className={`absolute top-4 ${showNew ? 'right-4' : 'left-4'} bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase`}
+                    >
+                      Sale
+                    </span>
+                  )}
+                  {typeof product.stockQuantity === 'number' && product.stockQuantity <= 0 && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                       <span className="text-white text-sm tracking-wider uppercase">Out of Stock</span>
                     </div>
@@ -227,8 +316,9 @@ export default function CategoryPage() {
                     )}
                   </div>
                 </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

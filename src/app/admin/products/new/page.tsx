@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -8,8 +8,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiClient } from '@/lib/api/client';
 import { Category } from '@/types';
-import { Button, Input, Select } from '@/components/ui';
+import { Button, ImageUpload, Input, Select } from '@/components/ui';
+import { ProductAttributeBuilder } from '@/components/admin/ProductAttributeBuilder';
 import { ArrowLeft } from 'lucide-react';
+import { useAuthStore } from '@/lib/stores';
+import { getPermissions } from '@/lib/auth/permissions';
 
 const productSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
@@ -23,17 +26,27 @@ const productSchema = z.object({
   featured: z.boolean().default(false),
 });
 
-type ProductFormData = z.infer<typeof productSchema>;
+type ProductFormData = z.input<typeof productSchema>;
 
 export default function NewProductPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const permissions = useMemo(
+    () => (user ? getPermissions(user.roles) : null),
+    [user?.roles?.join('|')]
+  );
+  const lastFetchKeyRef = useRef<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inventoryWarning, setInventoryWarning] = useState<string | null>(null);
+  const [attributes, setAttributes] = useState<Record<string, any>>({});
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -44,11 +57,9 @@ export default function NewProductPage() {
     },
   });
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  const selectedCategoryId = watch('categoryId');
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await apiClient.get<{ status: boolean; data: Category[]; message: string }>(
         '/admin/categories'
@@ -57,25 +68,70 @@ export default function NewProductPage() {
     } catch (err) {
       console.error('Failed to fetch categories', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!permissions?.canCreateProducts) {
+      router.push('/admin');
+      return;
+    }
+    const key = `${user.id || user.username || 'user'}`;
+    if (lastFetchKeyRef.current === key) return;
+    lastFetchKeyRef.current = key;
+    fetchCategories();
+  }, [user, permissions?.canCreateProducts, router, fetchCategories]);
 
   const onSubmit = async (data: ProductFormData) => {
     setIsLoading(true);
     setError(null);
+    setInventoryWarning(null);
     try {
       const payload = {
-        ...data,
+        name: data.name,
+        description: data.description,
+        price: data.price,
         compareAtPrice: data.compareAtPrice || undefined,
+        sku: data.sku,
+        categoryId: data.categoryId,
+        attributes: attributes, // Include product specifications
+        active: data.active,
+        featured: data.featured,
       };
-      const response = await apiClient.post<{ status: boolean; data: { id: string }; message: string }>(
+      const response = await apiClient.post<{ status: boolean; data: { product: { id: string } }; message: string }>(
         '/admin/products',
         payload
       );
 
-      // Redirect to edit page to add images
-      const newProductId = response.data.data?.id;
+      const newProductId = response.data.data?.product?.id;
+      let imageUploadFailed = false;
+      if (newProductId && imageFile) {
+        try {
+          const formData = new FormData();
+          formData.append('file', imageFile);
+          await apiClient.post(`/admin/products/${newProductId}/image`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+        } catch (uploadErr) {
+          console.error('Failed to upload image during product creation', uploadErr);
+          imageUploadFailed = true;
+        }
+      }
+
       if (newProductId) {
-        router.push(`/admin/products/${newProductId}?new=true`);
+        const initialStock = typeof data.stockQuantity === 'number' ? data.stockQuantity : 0;
+        try {
+          await apiClient.post(`/admin/inventory/${newProductId}?initialStock=${initialStock}`);
+        } catch (invErr) {
+          console.error('Failed to create initial inventory', invErr);
+          setInventoryWarning('Product created, but inventory setup failed. Please update stock from the edit page.');
+        }
+      }
+      if (newProductId) {
+        const imageParam = imageUploadFailed ? '&image=failed' : '';
+        router.push(`/admin/products/${newProductId}?new=true${imageParam}`);
       } else {
         router.push('/admin/products');
       }
@@ -87,6 +143,10 @@ export default function NewProductPage() {
       setIsLoading(false);
     }
   };
+
+  if (user && !permissions?.canCreateProducts) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -105,15 +165,37 @@ export default function NewProductPage() {
           {error}
         </div>
       )}
+      {inventoryWarning && (
+        <div className="p-4 bg-yellow-50 text-yellow-800 rounded-lg">
+          {inventoryWarning}
+        </div>
+      )}
 
       {/* Note about images */}
       <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <p className="text-sm text-blue-800">
-          <strong>Note:</strong> You can add product images after creating the product.
-          You&apos;ll be redirected to the edit page where you can upload images.
+          <strong>Note:</strong> You can optionally choose an image now. We&apos;ll upload it after the product is
+          created and the backend will generate the thumbnail. You&apos;ll still be redirected to the edit page.
         </p>
       </div>
 
+      {/* Optional Product Image */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">Product Image (Optional)</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Upload a main product image. The backend will create a thumbnail for small screens.
+        </p>
+        <ImageUpload
+          currentImage={null}
+          onUpload={async (file) => {
+            setImageFile(file);
+          }}
+          onRemove={() => setImageFile(null)}
+          disabled={isLoading}
+        />
+      </div>
+
+      {/* Basic Product Information Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
@@ -225,6 +307,15 @@ export default function NewProductPage() {
           </Button>
         </div>
       </form>
+
+      {/* Product Specifications Section - Optional, Independent */}
+      <div className="bg-white rounded-lg shadow-sm">
+        <ProductAttributeBuilder
+          attributes={attributes}
+          onChange={setAttributes}
+          categoryId={selectedCategoryId}
+        />
+      </div>
     </div>
   );
 }

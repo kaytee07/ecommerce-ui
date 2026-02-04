@@ -8,9 +8,9 @@ interface CartState {
   error: string | null;
 
   fetchCart: () => Promise<void>;
-  addItem: (productId: string, quantity: number) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number) => Promise<void>;
-  removeItem: (productId: string) => Promise<void>;
+  addItem: (productId: string, quantity: number, selectedOptions?: Record<string, string>) => Promise<void>;
+  updateQuantity: (productId: string, quantity: number, itemKey?: string, selectedOptions?: Record<string, string>) => Promise<void>;
+  removeItem: (productId: string, itemKey?: string) => Promise<void>;
   clearCart: () => Promise<void>;
   clearError: () => void;
 }
@@ -32,12 +32,13 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  addItem: async (productId, quantity) => {
+  addItem: async (productId, quantity, selectedOptions) => {
     set({ isLoading: true, error: null });
     try {
       const response = await apiClient.post<{ status: boolean; data: Cart; message: string }>('/store/cart/items', {
         productId,
         quantity,
+        selectedOptions,
       });
       set({ cart: response.data.data });
     } catch (error: unknown) {
@@ -54,21 +55,23 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  updateQuantity: async (productId, quantity) => {
+  updateQuantity: async (productId, quantity, itemKey, selectedOptions) => {
     const previousCart = get().cart;
+    const matchesItem = (item: CartItem) =>
+      itemKey ? item.itemKey === itemKey : item.productId === productId;
 
     // Optimistic update
     if (previousCart) {
       const optimisticCart: Cart = {
         ...previousCart,
         items: previousCart.items.map((item) =>
-          item.productId === productId
-            ? { ...item, quantity, subtotal: item.unitPrice * quantity }
+          matchesItem(item)
+            ? { ...item, quantity, subtotal: item.priceAtAdd * quantity }
             : item
         ),
-        subtotal: previousCart.items.reduce((sum, item) => {
-          if (item.productId === productId) {
-            return sum + item.unitPrice * quantity;
+        totalAmount: previousCart.items.reduce((sum, item) => {
+          if (matchesItem(item)) {
+            return sum + item.priceAtAdd * quantity;
           }
           return sum + item.subtotal;
         }, 0),
@@ -79,7 +82,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     try {
       const response = await apiClient.put<{ status: boolean; data: Cart; message: string }>(
         `/store/cart/items/${productId}`,
-        { quantity }
+        { quantity, itemKey, selectedOptions }
       );
       set({ cart: response.data.data });
     } catch (error) {
@@ -88,25 +91,28 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  removeItem: async (productId) => {
+  removeItem: async (productId, itemKey) => {
     const previousCart = get().cart;
+    const matchesItem = (item: CartItem) =>
+      itemKey ? item.itemKey === itemKey : item.productId === productId;
 
     // Optimistic update
     if (previousCart) {
-      const filteredItems = previousCart.items.filter((item) => item.productId !== productId);
+      const filteredItems = previousCart.items.filter((item) => !matchesItem(item));
       set({
         cart: {
           ...previousCart,
           items: filteredItems,
           itemCount: filteredItems.length,
-          subtotal: filteredItems.reduce((sum, item) => sum + item.subtotal, 0),
+          totalAmount: filteredItems.reduce((sum, item) => sum + item.subtotal, 0),
         },
       });
     }
 
     try {
+      const query = itemKey ? `?itemKey=${encodeURIComponent(itemKey)}` : '';
       const response = await apiClient.delete<{ status: boolean; data: Cart; message: string }>(
-        `/store/cart/items/${productId}`
+        `/store/cart/items/${productId}${query}`
       );
       set({ cart: response.data.data });
     } catch (error) {

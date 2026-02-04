@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
-import { Button, Skeleton } from '@/components/ui';
+import { Notification, NotificationSeverity, NotificationType } from '@/types';
+import { Button, Skeleton, Input } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import {
   Bell,
@@ -11,33 +13,25 @@ import {
   Package,
   ShoppingCart,
   CreditCard,
-  Users,
   CheckCircle,
   Info,
+  XCircle,
   X,
   Filter,
   CheckCheck,
 } from 'lucide-react';
-
-interface Notification {
-  id: string;
-  type: 'LOW_STOCK' | 'OUT_OF_STOCK' | 'ORDER_PLACED' | 'PAYMENT_RECEIVED' | 'NEW_CUSTOMER' | 'SYSTEM';
-  severity: 'INFO' | 'WARNING' | 'CRITICAL';
-  title: string;
-  message: string;
-  read: boolean;
-  entityId?: string;
-  entityType?: string;
-  createdAt: string;
-}
+import { useAuthStore } from '@/lib/stores';
+import { getPermissions } from '@/lib/auth/permissions';
 
 const typeConfig = {
   LOW_STOCK: { icon: Package, color: 'text-yellow-500', bg: 'bg-yellow-50' },
   OUT_OF_STOCK: { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
   ORDER_PLACED: { icon: ShoppingCart, color: 'text-blue-500', bg: 'bg-blue-50' },
-  PAYMENT_RECEIVED: { icon: CreditCard, color: 'text-green-500', bg: 'bg-green-50' },
-  NEW_CUSTOMER: { icon: Users, color: 'text-purple-500', bg: 'bg-purple-50' },
-  SYSTEM: { icon: Info, color: 'text-gray-500', bg: 'bg-gray-50' },
+  ORDER_CANCELLED: { icon: XCircle, color: 'text-gray-600', bg: 'bg-gray-100' },
+  PAYMENT_FAILED: { icon: CreditCard, color: 'text-red-500', bg: 'bg-red-50' },
+  ANNOUNCEMENT: { icon: Info, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+  SYSTEM_ALERT: { icon: AlertTriangle, color: 'text-gray-500', bg: 'bg-gray-50' },
+  INVENTORY_ADJUSTMENT: { icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
 };
 
 const severityConfig = {
@@ -47,18 +41,28 @@ const severityConfig = {
 };
 
 export default function AdminNotificationsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const permissions = useMemo(
+    () => (user ? getPermissions(user.roles) : null),
+    [user?.roles?.join('|')]
+  );
+  const lastFetchKeyRef = useRef<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<NotificationType | 'all'>('all');
+  const [severityFilter, setSeverityFilter] = useState<NotificationSeverity | 'all'>('all');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementMessage, setAnnouncementMessage] = useState('');
+  const [isSendingAnnouncement, setIsSendingAnnouncement] = useState(false);
+  const [announcementStatus, setAnnouncementStatus] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'notifications' | 'announcements'>('notifications');
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [typeFilter, severityFilter, showUnreadOnly]);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
+    setActionError(null);
     try {
       let endpoint = '/admin/notifications';
       if (showUnreadOnly) {
@@ -72,79 +76,27 @@ export default function AdminNotificationsPage() {
       setNotifications(response.data.data?.content || response.data.data || []);
     } catch (err) {
       console.error('Failed to fetch notifications', err);
-      // Demo data
-      setNotifications([
-        {
-          id: '1',
-          type: 'ORDER_PLACED',
-          severity: 'INFO',
-          title: 'New Order Received',
-          message: 'Order #ORD-2026-001250 has been placed by John Doe',
-          read: false,
-          entityId: 'ord-1',
-          entityType: 'ORDER',
-          createdAt: '2026-01-16T10:30:00Z',
-        },
-        {
-          id: '2',
-          type: 'LOW_STOCK',
-          severity: 'WARNING',
-          title: 'Low Stock Alert',
-          message: 'Gothic Sweatshirt (Size M) is running low - only 3 items left',
-          read: false,
-          entityId: 'prod-1',
-          entityType: 'PRODUCT',
-          createdAt: '2026-01-16T09:15:00Z',
-        },
-        {
-          id: '3',
-          type: 'OUT_OF_STOCK',
-          severity: 'CRITICAL',
-          title: 'Out of Stock',
-          message: 'Bone Shaker Tee (Size XL) is now out of stock',
-          read: false,
-          entityId: 'prod-2',
-          entityType: 'PRODUCT',
-          createdAt: '2026-01-16T08:45:00Z',
-        },
-        {
-          id: '4',
-          type: 'PAYMENT_RECEIVED',
-          severity: 'INFO',
-          title: 'Payment Confirmed',
-          message: 'Payment of GHS 299.99 received for Order #ORD-2026-001248',
-          read: true,
-          entityId: 'pay-1',
-          entityType: 'PAYMENT',
-          createdAt: '2026-01-15T16:20:00Z',
-        },
-        {
-          id: '5',
-          type: 'NEW_CUSTOMER',
-          severity: 'INFO',
-          title: 'New Customer Registration',
-          message: 'Alice Brown has created a new account',
-          read: true,
-          entityId: 'user-1',
-          entityType: 'USER',
-          createdAt: '2026-01-15T14:00:00Z',
-        },
-        {
-          id: '6',
-          type: 'SYSTEM',
-          severity: 'INFO',
-          title: 'System Update',
-          message: 'The system has been updated to version 2.1.0',
-          read: true,
-          createdAt: '2026-01-15T02:00:00Z',
-        },
-      ]);
+      setNotifications([]);
+      setActionError('Failed to load notifications.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showUnreadOnly, typeFilter, severityFilter]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!permissions?.canViewNotifications) {
+      router.push('/admin');
+      return;
+    }
+    const key = `${user.id || user.username || 'user'}:${typeFilter}:${severityFilter}:${showUnreadOnly ? 'unread' : 'all'}`;
+    if (lastFetchKeyRef.current === key) return;
+    lastFetchKeyRef.current = key;
+    fetchNotifications();
+  }, [typeFilter, severityFilter, showUnreadOnly, user, permissions?.canViewNotifications, router, fetchNotifications]);
 
   const handleMarkAsRead = async (id: string) => {
+    setActionError(null);
     try {
       await apiClient.post(`/admin/notifications/${id}/read`);
       setNotifications((prev) =>
@@ -152,21 +104,46 @@ export default function AdminNotificationsPage() {
       );
     } catch (err) {
       console.error('Failed to mark as read', err);
-      // Demo: update locally
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
+      setActionError('Failed to mark notification as read.');
     }
   };
 
   const handleMarkAllAsRead = async () => {
+    setActionError(null);
     try {
       await apiClient.post('/admin/notifications/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch (err) {
       console.error('Failed to mark all as read', err);
-      // Demo: update locally
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setActionError('Failed to mark all notifications as read.');
+    }
+  };
+
+  const handleSendAnnouncement = async () => {
+    if (!announcementTitle.trim() || !announcementMessage.trim()) {
+      setAnnouncementStatus('Title and message are required.');
+      return;
+    }
+    setIsSendingAnnouncement(true);
+    setAnnouncementStatus(null);
+    try {
+      const response = await apiClient.post('/admin/notifications/announcements', {
+        title: announcementTitle.trim(),
+        message: announcementMessage.trim(),
+      });
+      const queued = response.data.data?.emailsQueued;
+      setAnnouncementStatus(
+        typeof queued === 'number'
+          ? `Announcement queued for ${queued} customers.`
+          : 'Announcement queued successfully.'
+      );
+      setAnnouncementTitle('');
+      setAnnouncementMessage('');
+    } catch (err) {
+      console.error('Failed to send announcement', err);
+      setAnnouncementStatus('Failed to send announcement.');
+    } finally {
+      setIsSendingAnnouncement(false);
     }
   };
 
@@ -211,6 +188,10 @@ export default function AdminNotificationsPage() {
     return true;
   });
 
+  if (user && !permissions?.canViewNotifications) {
+    return null;
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -243,6 +224,79 @@ export default function AdminNotificationsPage() {
         )}
       </div>
 
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('notifications')}
+          className={cn(
+            'px-4 py-2 rounded-lg text-sm font-medium',
+            activeTab === 'notifications'
+              ? 'bg-primary text-white'
+              : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+          )}
+        >
+          Notifications
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('announcements')}
+          className={cn(
+            'px-4 py-2 rounded-lg text-sm font-medium',
+            activeTab === 'announcements'
+              ? 'bg-primary text-white'
+              : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+          )}
+        >
+          Broadcast Announcement
+        </button>
+      </div>
+
+      {activeTab === 'announcements' && permissions?.canSendAnnouncements && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Broadcast Announcement</h2>
+            <p className="text-sm text-gray-500">Send an email announcement to all customers.</p>
+          </div>
+          <div className="grid gap-4">
+            <Input
+              label="Title"
+              value={announcementTitle}
+              onChange={(e) => setAnnouncementTitle(e.target.value)}
+              placeholder="Announcement title"
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+              <textarea
+                value={announcementMessage}
+                onChange={(e) => setAnnouncementMessage(e.target.value)}
+                placeholder="Write your announcement message..."
+                className="w-full min-h-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+            {announcementStatus && (
+              <div className="text-sm text-gray-600">{announcementStatus}</div>
+            )}
+            <Button onClick={handleSendAnnouncement} disabled={isSendingAnnouncement}>
+              {isSendingAnnouncement ? 'Sending...' : 'Send Announcement'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'announcements' && !permissions?.canSendAnnouncements && (
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-700">
+          You do not have permission to send announcements.
+        </div>
+      )}
+
+      {activeTab === 'notifications' && (
+        <>
       {/* Filters */}
       <div className="flex flex-wrap gap-4">
         <div className="flex items-center gap-2">
@@ -255,10 +309,12 @@ export default function AdminNotificationsPage() {
             <option value="all">All Types</option>
             <option value="LOW_STOCK">Low Stock</option>
             <option value="OUT_OF_STOCK">Out of Stock</option>
-            <option value="ORDER_PLACED">Orders</option>
-            <option value="PAYMENT_RECEIVED">Payments</option>
-            <option value="NEW_CUSTOMER">Customers</option>
-            <option value="SYSTEM">System</option>
+            <option value="ORDER_PLACED">Order Placed</option>
+            <option value="ORDER_CANCELLED">Order Cancelled</option>
+            <option value="PAYMENT_FAILED">Payment Failed</option>
+            <option value="ANNOUNCEMENT">Announcement</option>
+            <option value="SYSTEM_ALERT">System Alert</option>
+            <option value="INVENTORY_ADJUSTMENT">Inventory Adjustment</option>
           </select>
         </div>
 
@@ -298,7 +354,11 @@ export default function AdminNotificationsPage() {
           </div>
         ) : (
           filteredNotifications.map((notification) => {
-            const config = typeConfig[notification.type];
+            const config = typeConfig[notification.type] || {
+              icon: Info,
+              color: 'text-gray-500',
+              bg: 'bg-gray-50',
+            };
             const Icon = config.icon;
             const link = getEntityLink(notification);
 
@@ -364,6 +424,8 @@ export default function AdminNotificationsPage() {
           })
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

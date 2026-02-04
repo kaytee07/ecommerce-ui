@@ -1,5 +1,7 @@
 # World Genius E-Commerce Frontend - User Instructions
 
+**Audit Note (2026-01-21):** For architecture and current setup, see `README.md`.
+
 ## Getting Started
 
 ### Prerequisites

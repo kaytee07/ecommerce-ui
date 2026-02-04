@@ -24,11 +24,12 @@ export default function AccountLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, isLoading, user, logout, checkAuth } = useAuthStore();
+  const { isAuthenticated, isLoading, user, logout } = useAuthStore();
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    // Call checkAuth only once on mount
+    useAuthStore.getState().checkAuth();
+  }, []); // Empty dependency array - only run once
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {

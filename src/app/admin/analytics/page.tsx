@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api/client';
 import { Button, Skeleton } from '@/components/ui';
 import { formatCurrency } from '@/lib/utils';
@@ -16,16 +17,23 @@ import {
   Calendar,
   ArrowRight,
 } from 'lucide-react';
+import { useAuthStore } from '@/lib/stores';
+import { getPermissions } from '@/lib/auth/permissions';
 
 // Matches AnalyticsDashboardDTO from backend
 interface DashboardMetrics {
-  totalOrders: number;
-  totalRevenue: number;
-  avgOrderValue: number;
-  pendingOrders: number;
-  lowStockCount: number;
-  dailySales: DailySales[];
+  todayRevenue: number;
+  weekRevenue: number;
+  monthRevenue: number;
+  todayOrderCount: number;
+  weekOrderCount: number;
+  monthOrderCount: number;
+  salesFunnel: SalesFunnel | null;
   topProducts: TopProduct[];
+  lowStockAlerts: LowStockProduct[];
+  successfulPayments: number;
+  failedPayments: number;
+  totalPaymentVolume: number;
   generatedAt: string;
 }
 
@@ -55,6 +63,8 @@ interface SalesFunnel {
   successfulOrders: number;
   successfulPayments: number;
   failedPayments: number;
+  cartToOrderRate: number;
+  orderToPaidRate: number;
 }
 
 // Matches LowStockProductDTO from backend
@@ -69,6 +79,13 @@ interface LowStockProduct {
 }
 
 export default function AdminAnalyticsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const permissions = useMemo(
+    () => (user ? getPermissions(user.roles) : null),
+    [user?.roles?.join('|')]
+  );
+  const lastFetchKeyRef = useRef<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardMetrics | null>(null);
   const [dailySales, setDailySales] = useState<DailySales[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
@@ -78,22 +95,7 @@ export default function AdminAnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState('7d');
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [dateRange]);
-
-  // Calculate date range for API
-  const getDateRange = () => {
-    const to = new Date();
-    const from = new Date();
-    from.setDate(to.getDate() - (dateRange === '7d' ? 7 : 30));
-    return {
-      from: from.toISOString().split('T')[0],
-      to: to.toISOString().split('T')[0],
-    };
-  };
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     const { from, to } = getDateRange();
@@ -107,17 +109,20 @@ export default function AdminAnalyticsPage() {
       // IMPORTANT: Always use fallback to prevent undefined errors
       const dashboardData = dashboardRes.data.data;
       setDashboard(dashboardData);
-      setDailySales(dashboardData?.dailySales || []);
       setTopProducts(dashboardData?.topProducts || []);
 
       // Fetch additional data in parallel
-      const [funnelRes, lowStockRes] = await Promise.all([
-        apiClient.get<{ status: boolean; data: SalesFunnel }>('/admin/analytics/sales-funnel'),
-        apiClient.get<{ status: boolean; data: LowStockProduct[] }>('/admin/analytics/low-stock?threshold=5'),
+      const [funnelRes, lowStockRes, dailySalesRes] = await Promise.all([
+        apiClient.get<{ status: boolean; data: SalesFunnel }>('/admin/analytics/funnel'),
+        apiClient.get<{ status: boolean; data: LowStockProduct[] }>('/admin/analytics/inventory/low-stock?threshold=5'),
+        apiClient.get<{ status: boolean; data: DailySales[] }>(
+          `/admin/analytics/sales/daily?fromDate=${from}&toDate=${to}`
+        ),
       ]);
 
       setFunnel(funnelRes.data.data || null);
       setLowStockProducts(lowStockRes.data.data || []);
+      setDailySales(dailySalesRes.data.data || []);
     } catch (err) {
       console.error('Failed to fetch analytics', err);
       setError('Failed to load analytics data. Please ensure the backend is running.');
@@ -130,7 +135,35 @@ export default function AdminAnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
+  }, [dateRange]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!permissions?.canViewAnalytics) {
+      router.push('/admin');
+      return;
+    }
+    const key = `${user.id || user.username || 'user'}:${dateRange}`;
+    if (lastFetchKeyRef.current === key) return;
+    lastFetchKeyRef.current = key;
+    fetchAnalytics();
+  }, [dateRange, user, permissions?.canViewAnalytics, router, fetchAnalytics]);
+
+  // Calculate date range for API
+  const getDateRange = () => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - (dateRange === '7d' ? 7 : 30));
+    return {
+      from: from.toISOString().split('T')[0],
+      to: to.toISOString().split('T')[0],
+    };
   };
+
+
+  if (user && !permissions?.canViewAnalytics) {
+    return null;
+  }
 
   const handleExport = async (type: 'orders' | 'payments' | 'inventory' | 'daily-sales') => {
     const { from, to } = getDateRange();
@@ -138,7 +171,7 @@ export default function AdminAnalyticsPage() {
       // Build URL with date range for applicable exports
       let url = `/admin/analytics/export/${type}`;
       if (type === 'orders' || type === 'payments' || type === 'daily-sales') {
-        url += `?from=${from}&to=${to}`;
+        url += `?fromDate=${from}&toDate=${to}`;
       }
 
       const response = await apiClient.get(url, {
@@ -173,6 +206,9 @@ export default function AdminAnalyticsPage() {
   const conversionRate = funnel && funnel.cartCount > 0
     ? ((funnel.successfulPayments / funnel.cartCount) * 100).toFixed(1)
     : '0';
+  const totalOrderCount = dateRange === '7d' ? (dashboard?.weekOrderCount || 0) : (dashboard?.monthOrderCount || 0);
+  const totalRevenue = dateRange === '7d' ? (dashboard?.weekRevenue || 0) : (dashboard?.monthRevenue || 0);
+  const avgOrderValue = totalOrderCount > 0 ? totalRevenue / totalOrderCount : 0;
 
   if (isLoading) {
     return (
@@ -215,35 +251,35 @@ export default function AdminAnalyticsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Total Revenue"
-            value={formatCurrency(dashboard.totalRevenue)}
+            value={formatCurrency(totalRevenue)}
             icon={DollarSign}
           />
           <MetricCard
             title="Total Orders"
-            value={dashboard.totalOrders.toString()}
+            value={totalOrderCount.toString()}
             icon={ShoppingCart}
           />
           <MetricCard
             title="Pending Orders"
-            value={dashboard.pendingOrders.toString()}
+            value={(funnel?.pendingOrders ?? 0).toString()}
             icon={Package}
           />
           <MetricCard
             title="Avg Order Value"
-            value={formatCurrency(dashboard.avgOrderValue)}
+            value={formatCurrency(avgOrderValue)}
             icon={BarChart3}
           />
         </div>
       )}
 
       {/* Low Stock Alert */}
-      {dashboard && dashboard.lowStockCount > 0 && (
+      {lowStockProducts.length > 0 && (
         <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
           <Package className="h-5 w-5 text-yellow-600" />
           <div>
             <p className="font-medium text-yellow-800">Low Stock Alert</p>
             <p className="text-sm text-yellow-700">
-              {dashboard.lowStockCount} products are running low on stock
+              {lowStockProducts.length} products are running low on stock
             </p>
           </div>
         </div>

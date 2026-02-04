@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
 import { DashboardData, OrderHistory } from '@/types';
 import { StatusBadge, Skeleton, Card, CardHeader, CardContent } from '@/components/ui';
-import { formatCurrency, formatDate, formatOrderNumber } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import {
   DollarSign,
   ShoppingCart,
@@ -15,8 +15,12 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/lib/stores';
+import { getPermissions } from '@/lib/auth/permissions';
 
 export default function AdminDashboardPage() {
+  const { user } = useAuthStore();
+  const permissions = user ? getPermissions(user.roles) : null;
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [recentOrders, setRecentOrders] = useState<OrderHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,16 +31,42 @@ export default function AdminDashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [dashboardRes, ordersRes] = await Promise.all([
-        apiClient.get<{ status: boolean; data: DashboardData; message: string }>(
-          '/admin/analytics/dashboard'
-        ),
-        apiClient.get<{ status: boolean; data: { content: OrderHistory[] }; message: string }>(
-          '/admin/orders?size=5'
-        ),
-      ]);
-      setDashboard(dashboardRes.data.data);
-      setRecentOrders(ordersRes.data.data?.content || []);
+      const requests: Array<Promise<unknown>> = [];
+      const shouldFetchAnalytics = !!permissions?.canViewAnalytics;
+      const shouldFetchOrders = !!permissions?.canViewAllOrders;
+
+      if (shouldFetchAnalytics) {
+        requests.push(
+          apiClient.get<{ status: boolean; data: DashboardData; message: string }>(
+            '/admin/analytics/dashboard'
+          )
+        );
+      }
+      if (shouldFetchOrders) {
+        requests.push(
+          apiClient.get<{ status: boolean; data: OrderHistory[]; message: string }>(
+            '/admin/orders?size=5'
+          )
+        );
+      }
+
+      const results = await Promise.all(requests);
+      let resultIndex = 0;
+      if (shouldFetchAnalytics) {
+        const dashboardRes = results[resultIndex] as { data: { data: DashboardData } };
+        setDashboard(dashboardRes.data.data);
+        resultIndex += 1;
+      } else {
+        setDashboard(null);
+      }
+
+      if (shouldFetchOrders) {
+        const ordersRes = results[resultIndex] as { data: { data: OrderHistory[] } };
+        const ordersPayload = ordersRes.data.data as unknown as { content?: OrderHistory[] };
+        setRecentOrders(ordersPayload?.content || ordersRes.data.data || []);
+      } else {
+        setRecentOrders([]);
+      }
     } catch (err) {
       console.error('Failed to fetch dashboard data', err);
       setRecentOrders([]);
@@ -64,29 +94,29 @@ export default function AdminDashboardPage() {
 
   const stats = [
     {
-      label: 'Total Revenue',
-      value: formatCurrency(dashboard?.totalRevenue || 0),
+      label: 'Revenue (30d)',
+      value: formatCurrency(dashboard?.monthRevenue || 0),
       icon: DollarSign,
       color: 'bg-green-500',
       href: '/admin/analytics',
     },
     {
       label: 'Total Orders',
-      value: dashboard?.totalOrders.toLocaleString() || '0',
+      value: (dashboard?.salesFunnel?.orderCount ?? 0).toLocaleString(),
       icon: ShoppingCart,
       color: 'bg-blue-500',
       href: '/admin/orders',
     },
     {
       label: 'Pending Orders',
-      value: dashboard?.pendingOrders.toLocaleString() || '0',
+      value: (dashboard?.salesFunnel?.pendingOrders ?? 0).toLocaleString(),
       icon: Package,
       color: 'bg-yellow-500',
       href: '/admin/orders?status=PENDING',
     },
     {
       label: 'Low Stock Items',
-      value: dashboard?.lowStockCount.toLocaleString() || '0',
+      value: (dashboard?.lowStockAlerts?.length ?? 0).toLocaleString(),
       icon: AlertTriangle,
       color: 'bg-red-500',
       href: '/admin/inventory?lowStock=true',
@@ -109,11 +139,11 @@ export default function AdminDashboardPage() {
             <Card hover className="h-full">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">{stat.label}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-500 truncate">{stat.label}</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1 truncate">{stat.value}</p>
                   </div>
-                  <div className={cn('p-3 rounded-full text-white', stat.color)}>
+                  <div className={cn('p-3 rounded-full text-white shrink-0', stat.color)}>
                     <stat.icon className="h-6 w-6" />
                   </div>
                 </div>
@@ -144,7 +174,7 @@ export default function AdminDashboardPage() {
                 >
                   <div>
                     <p className="font-medium text-gray-900">
-                      {formatOrderNumber(order.orderNumber)}
+                      {order.id.slice(0, 8).toUpperCase()}
                     </p>
                     <p className="text-sm text-gray-500">{formatDate(order.createdAt)}</p>
                   </div>
@@ -192,7 +222,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Low Stock Alert */}
-      {dashboard && dashboard.lowStockCount > 0 && (
+      {dashboard && (dashboard.lowStockAlerts?.length ?? 0) > 0 && (
         <Card className="border-warning bg-warning-bg/20">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -202,7 +232,7 @@ export default function AdminDashboardPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900">Low Stock Alert</h3>
                 <p className="text-gray-600">
-                  {dashboard.lowStockCount} product{dashboard.lowStockCount > 1 ? 's' : ''} are running low on stock
+                  {(dashboard.lowStockAlerts?.length ?? 0)} product{(dashboard.lowStockAlerts?.length ?? 0) > 1 ? 's' : ''} are running low on stock
                 </p>
               </div>
               <Link

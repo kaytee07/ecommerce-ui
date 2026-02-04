@@ -6,7 +6,7 @@ import { useAuthStore } from '@/lib/stores';
 import { apiClient } from '@/lib/api/client';
 import { OrderHistory } from '@/types';
 import { StatusBadge, Skeleton } from '@/components/ui';
-import { formatCurrency, formatDate, formatOrderNumber } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { Package, ArrowRight, ShoppingBag, CreditCard } from 'lucide-react';
 
 export default function AccountOverviewPage() {
@@ -29,7 +29,7 @@ export default function AccountOverviewPage() {
       setRecentOrders(orders.slice(0, 3));
       setStats({
         total: orders.length,
-        pending: orders.filter((o) => ['PENDING', 'PENDING_PAYMENT', 'CONFIRMED', 'PROCESSING'].includes(o.status)).length,
+        pending: orders.filter((o) => ['PENDING', 'CONFIRMED', 'PROCESSING'].includes(o.status)).length,
       });
     } catch (err) {
       console.error('Failed to fetch orders', err);
@@ -105,7 +105,7 @@ export default function AccountOverviewPage() {
               >
                 <div>
                   <p className="font-medium text-gray-900">
-                    Order {formatOrderNumber(order.orderNumber)}
+                    Order {order.id.slice(0, 8).toUpperCase()}
                   </p>
                   <p className="text-sm text-gray-500">
                     {formatDate(order.createdAt)} • {order.itemCount} items

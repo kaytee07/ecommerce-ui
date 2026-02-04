@@ -9,3 +9,4 @@ export * from './modal';
 export * from './toast';
 export * from './empty-state';
 export * from './image-upload';
+export * from './safe-image';

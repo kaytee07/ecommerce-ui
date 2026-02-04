@@ -1,5 +1,6 @@
 export const ROLES = {
   USER: 'ROLE_USER',
+  ADMIN: 'ROLE_ADMIN',
   CONTENT_MANAGER: 'ROLE_CONTENT_MANAGER',
   SUPPORT_AGENT: 'ROLE_SUPPORT_AGENT',
   WAREHOUSE: 'ROLE_WAREHOUSE',
@@ -18,6 +19,7 @@ export function hasAnyRole(userRoles: string[], requiredRoles: string[]): boolea
 
 export function isAdmin(roles: string[]): boolean {
   return hasAnyRole(roles, [
+    ROLES.ADMIN,
     ROLES.CONTENT_MANAGER,
     ROLES.SUPPORT_AGENT,
     ROLES.WAREHOUSE,
@@ -52,7 +54,7 @@ export function getPermissions(roles: string[]) {
     canProcessRefunds: hasAnyRole(roles, [ROLES.SUPPORT_AGENT, ROLES.CONTENT_MANAGER, ROLES.SUPER_ADMIN]),
 
     // User management
-    canViewUsers: hasAnyRole(roles, [ROLES.SUPPORT_AGENT, ROLES.SUPER_ADMIN]),
+    canViewUsers: hasAnyRole(roles, [ROLES.ADMIN, ROLES.SUPPORT_AGENT, ROLES.SUPER_ADMIN]),
     canManageRoles: hasRole(roles, ROLES.SUPER_ADMIN),
 
     // Inventory management
@@ -60,8 +62,11 @@ export function getPermissions(roles: string[]) {
     canAdjustInventory: hasAnyRole(roles, [ROLES.WAREHOUSE, ROLES.CONTENT_MANAGER, ROLES.SUPER_ADMIN]),
 
     // Analytics
-    canViewAnalytics: hasAnyRole(roles, [ROLES.CONTENT_MANAGER, ROLES.SUPER_ADMIN]),
+    canViewAnalytics: hasAnyRole(roles, [ROLES.ADMIN, ROLES.SUPER_ADMIN]),
     canExportData: hasRole(roles, ROLES.SUPER_ADMIN),
+
+    // Storefront content
+    canManageStorefront: hasAnyRole(roles, [ROLES.ADMIN, ROLES.SUPER_ADMIN]),
 
     // Notifications
     canViewNotifications: hasAnyRole(roles, [
@@ -70,6 +75,7 @@ export function getPermissions(roles: string[]) {
       ROLES.SUPPORT_AGENT,
       ROLES.SUPER_ADMIN,
     ]),
+    canSendAnnouncements: hasAnyRole(roles, [ROLES.ADMIN, ROLES.SUPER_ADMIN]),
 
     // Audit logs (SUPER_ADMIN only)
     canViewAuditLogs: hasRole(roles, ROLES.SUPER_ADMIN),

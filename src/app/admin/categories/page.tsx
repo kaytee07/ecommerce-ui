@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Image from 'next/image';
 import { apiClient } from '@/lib/api/client';
 import { Button, Skeleton } from '@/components/ui';
-import { dummyCategories } from '@/lib/data/dummy';
 import {
   Plus,
   Edit2,
@@ -23,6 +23,8 @@ import {
   ImageIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/lib/stores';
+import { getPermissions } from '@/lib/auth/permissions';
 
 const categorySchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
@@ -33,7 +35,7 @@ const categorySchema = z.object({
   active: z.boolean().default(true),
 });
 
-type CategoryFormData = z.infer<typeof categorySchema>;
+type CategoryFormData = z.input<typeof categorySchema>;
 
 interface Category {
   id: string;
@@ -49,6 +51,13 @@ interface Category {
 }
 
 export default function AdminCategoriesPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const permissions = useMemo(
+    () => (user ? getPermissions(user.roles) : null),
+    [user?.roles?.join('|')]
+  );
+  const lastFetchKeyRef = useRef<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -57,9 +66,40 @@ export default function AdminCategoriesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [categoryImage, setCategoryImage] = useState<string | null>(null);
+  const [categoryImageFile, setCategoryImageFile] = useState<File | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const productCountMap = useMemo(() => {
+    const byId = new Map<string, Category>();
+    const childrenByParent = new Map<string, Category[]>();
+    categories.forEach((cat) => {
+      byId.set(cat.id, cat);
+      if (cat.parentId) {
+        const children = childrenByParent.get(cat.parentId) || [];
+        children.push(cat);
+        childrenByParent.set(cat.parentId, children);
+      }
+    });
+
+    const cache = new Map<string, number>();
+    const getCount = (id: string): number => {
+      if (cache.has(id)) return cache.get(id) as number;
+      const category = byId.get(id);
+      let total = category?.productCount || 0;
+      const children = childrenByParent.get(id) || [];
+      children.forEach((child) => {
+        total += getCount(child.id);
+      });
+      cache.set(id, total);
+      return total;
+    };
+
+    categories.forEach((cat) => getCount(cat.id));
+    return cache;
+  }, [categories]);
 
   const {
     register,
@@ -75,104 +115,103 @@ export default function AdminCategoriesPage() {
     },
   });
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.get('/admin/categories');
       setCategories(response.data.data || []);
     } catch (err) {
       console.error('Failed to fetch categories', err);
-      // Use dummy data
-      setCategories(
-        dummyCategories.map((c) => ({
-          ...c,
-          displayOrder: 0,
-          active: true,
-          productCount: c.productCount || 0,
-        }))
-      );
+      setCategories([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const onSubmit = async (data: CategoryFormData) => {
+  useEffect(() => {
+    if (!user) return;
+    if (!permissions?.canManageCategories) {
+      router.push('/admin');
+      return;
+    }
+    const key = `${user.id || user.username || 'user'}`;
+    if (lastFetchKeyRef.current === key) return;
+    lastFetchKeyRef.current = key;
+    fetchCategories();
+  }, [user, permissions?.canManageCategories, router, fetchCategories]);
+
+  const onSubmit: SubmitHandler<CategoryFormData> = async (data) => {
+    setActionError(null);
     try {
       if (editingCategory) {
-        await apiClient.put(`/admin/categories/${editingCategory.id}`, data);
+        const response = await apiClient.put(`/admin/categories/${editingCategory.id}`, data);
+        const updatedCategory = response.data.data?.category;
+        let imageUrl = updatedCategory?.imageUrl || editingCategory.imageUrl || null;
+        if (categoryImageFile) {
+          setIsUploadingImage(true);
+          try {
+            const formData = new FormData();
+            formData.append('file', categoryImageFile);
+            const imageRes = await apiClient.post(
+              `/admin/categories/${editingCategory.id}/image`,
+              formData,
+              {
+                headers: { 'Content-Type': 'multipart/form-data' },
+              }
+            );
+            imageUrl = imageRes.data.data?.imageUrl || imageUrl;
+          } catch (uploadErr) {
+            console.error('Failed to upload category image', uploadErr);
+            setActionError('Category updated, but image upload failed. Please try again.');
+          } finally {
+            setIsUploadingImage(false);
+          }
+        }
         setCategories((prev) =>
           prev.map((cat) =>
             cat.id === editingCategory.id
-              ? { ...cat, ...data, slug: data.slug || generateSlug(data.name) }
+              ? {
+                  ...cat,
+                  ...(updatedCategory || data),
+                  imageUrl,
+                  slug: data.slug || generateSlug(data.name),
+                }
               : cat
           )
         );
       } else {
         const response = await apiClient.post('/admin/categories', data);
-        const newCategory = response.data.data;
-
-        // If there's a pending image for the new category, upload it
-        if (categoryImage && newCategory?.id && categoryImage.startsWith('data:')) {
-          try {
-            // Convert base64 to file
-            const res = await fetch(categoryImage);
-            const blob = await res.blob();
-            const file = new File([blob], 'category-image.jpg', { type: blob.type });
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const imageResponse = await apiClient.post<{ status: boolean; data: { url: string } }>(
-              `/admin/categories/${newCategory.id}/image`,
-              formData,
-              {
-                headers: {
-                  'Content-Type': 'multipart/form-data',
-                },
-              }
-            );
-
-            const imageUrl = imageResponse.data.data?.url;
-            if (imageUrl) {
-              newCategory.imageUrl = imageUrl;
+        const newCategory = response.data.data?.category;
+        if (newCategory) {
+          let imageUrl = newCategory.imageUrl || null;
+          if (categoryImageFile) {
+            setIsUploadingImage(true);
+            try {
+              const formData = new FormData();
+              formData.append('file', categoryImageFile);
+              const imageRes = await apiClient.post(
+                `/admin/categories/${newCategory.id}/image`,
+                formData,
+                {
+                  headers: { 'Content-Type': 'multipart/form-data' },
+                }
+              );
+              imageUrl = imageRes.data.data?.imageUrl || imageUrl;
+            } catch (uploadErr) {
+              console.error('Failed to upload category image', uploadErr);
+              setActionError('Category created, but image upload failed. Please try again.');
+            } finally {
+              setIsUploadingImage(false);
             }
-          } catch (imgErr) {
-            console.error('Failed to upload category image', imgErr);
-            // Category was created, image upload failed - continue anyway
           }
+          setCategories((prev) => [...prev, { ...newCategory, imageUrl }]);
         }
-
-        setCategories((prev) => [...prev, newCategory]);
       }
       handleClose();
     } catch (err) {
       console.error('Failed to save category', err);
-      // Demo: update locally
-      if (editingCategory) {
-        setCategories((prev) =>
-          prev.map((cat) =>
-            cat.id === editingCategory.id
-              ? { ...cat, ...data, slug: data.slug || generateSlug(data.name) }
-              : cat
-          )
-        );
-      } else {
-        setCategories((prev) => [
-          ...prev,
-          {
-            ...data,
-            id: Date.now().toString(),
-            slug: data.slug || generateSlug(data.name),
-            productCount: 0,
-            imageUrl: categoryImage?.startsWith('data:') ? undefined : categoryImage || undefined,
-          } as Category,
-        ]);
-      }
-      handleClose();
+      const error = err as { response?: { data?: { message?: string } } };
+      setActionError(error.response?.data?.message || 'Failed to save category. Please try again.');
     }
   };
 
@@ -201,47 +240,13 @@ export default function AdminCategoriesPage() {
 
     setImageError(null);
 
-    // If editing an existing category, upload immediately
-    if (editingCategory) {
-      setIsUploadingImage(true);
-      try {
-        const formData = new FormData();
-        formData.append('image', file);
+    setCategoryImageFile(file);
 
-        const response = await apiClient.post<{ status: boolean; data: { url: string }; message: string }>(
-          `/admin/categories/${editingCategory.id}/image`,
-          formData,
-          {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          }
-        );
-
-        const newImageUrl = response.data.data?.url;
-        if (newImageUrl) {
-          setCategoryImage(newImageUrl);
-          // Update the category in the list
-          setCategories((prev) =>
-            prev.map((cat) =>
-              cat.id === editingCategory.id ? { ...cat, imageUrl: newImageUrl } : cat
-            )
-          );
-        }
-      } catch (err) {
-        console.error('Failed to upload image', err);
-        setImageError('Failed to upload image. Please try again.');
-      } finally {
-        setIsUploadingImage(false);
-      }
-    } else {
-      // For new categories, just preview the image (will upload after category is created)
-      const reader = new FileReader();
-      reader.onload = () => {
-        setCategoryImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCategoryImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
 
     // Reset input
     if (fileInputRef.current) {
@@ -251,6 +256,7 @@ export default function AdminCategoriesPage() {
 
   const handleRemoveImage = () => {
     setCategoryImage(null);
+    setCategoryImageFile(null);
     setImageError(null);
   };
 
@@ -263,6 +269,7 @@ export default function AdminCategoriesPage() {
     setValue('displayOrder', category.displayOrder);
     setValue('active', category.active);
     setCategoryImage(category.imageUrl || null);
+    setCategoryImageFile(null);
     setImageError(null);
     setShowForm(true);
   };
@@ -271,19 +278,21 @@ export default function AdminCategoriesPage() {
     if (!confirm('Are you sure you want to delete this category?')) return;
 
     setDeletingId(id);
+    setActionError(null);
     try {
       await apiClient.delete(`/admin/categories/${id}`);
       setCategories((prev) => prev.filter((cat) => cat.id !== id));
     } catch (err) {
       console.error('Failed to delete category', err);
-      // Demo: delete locally
-      setCategories((prev) => prev.filter((cat) => cat.id !== id));
+      const error = err as { response?: { data?: { message?: string } } };
+      setActionError(error.response?.data?.message || 'Failed to delete category.');
     } finally {
       setDeletingId(null);
     }
   };
 
   const handleToggleActive = async (category: Category) => {
+    setActionError(null);
     try {
       if (category.active) {
         await apiClient.delete(`/admin/categories/${category.id}`);
@@ -297,12 +306,8 @@ export default function AdminCategoriesPage() {
       );
     } catch (err) {
       console.error('Failed to toggle category status', err);
-      // Demo: toggle locally
-      setCategories((prev) =>
-        prev.map((cat) =>
-          cat.id === category.id ? { ...cat, active: !cat.active } : cat
-        )
-      );
+      const error = err as { response?: { data?: { message?: string } } };
+      setActionError(error.response?.data?.message || 'Failed to update category status.');
     }
   };
 
@@ -310,6 +315,7 @@ export default function AdminCategoriesPage() {
     setShowForm(false);
     setEditingCategory(null);
     setCategoryImage(null);
+    setCategoryImageFile(null);
     setImageError(null);
     reset();
   };
@@ -345,6 +351,10 @@ export default function AdminCategoriesPage() {
     );
   }
 
+  if (user && !permissions?.canManageCategories) {
+    return null;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -354,6 +364,12 @@ export default function AdminCategoriesPage() {
           Add Category
         </Button>
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">
@@ -482,11 +498,6 @@ export default function AdminCategoriesPage() {
                   <p className="text-sm text-error mt-2">{imageError}</p>
                 )}
 
-                {!editingCategory && categoryImage && (
-                  <p className="text-xs text-amber-600 mt-2">
-                    Image will be uploaded after the category is created.
-                  </p>
-                )}
               </div>
 
               <div>
@@ -588,6 +599,7 @@ export default function AdminCategoriesPage() {
                   onDelete={handleDelete}
                   onToggleActive={handleToggleActive}
                   deletingId={deletingId}
+                  productCountMap={productCountMap}
                 />
               ))
             )}
@@ -609,6 +621,7 @@ function CategoryRow({
   onDelete,
   onToggleActive,
   deletingId,
+  productCountMap,
 }: {
   category: Category;
   allCategories: Category[];
@@ -619,11 +632,13 @@ function CategoryRow({
   onDelete: (id: string) => void;
   onToggleActive: (category: Category) => void;
   deletingId: string | null;
+  productCountMap: Map<string, number>;
 }) {
   const children = allCategories.filter((c) => c.parentId === category.id);
   const hasChildren = children.length > 0;
   const isExpanded = expandedIds.has(category.id);
   const [showMenu, setShowMenu] = useState(false);
+  const totalCount = productCountMap.get(category.id) ?? category.productCount ?? 0;
 
   return (
     <>
@@ -660,7 +675,7 @@ function CategoryRow({
           </div>
         </td>
         <td className="px-6 py-4 text-sm text-gray-500 font-mono">{category.slug}</td>
-        <td className="px-6 py-4 text-center text-sm">{category.productCount || 0}</td>
+        <td className="px-6 py-4 text-center text-sm">{totalCount}</td>
         <td className="px-6 py-4 text-center">
           <span
             className={cn(
@@ -734,6 +749,7 @@ function CategoryRow({
             onDelete={onDelete}
             onToggleActive={onToggleActive}
             deletingId={deletingId}
+            productCountMap={productCountMap}
           />
         ))}
     </>

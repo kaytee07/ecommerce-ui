@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="533" viewBox="0 0 400 533">
+  <rect width="400" height="533" fill="#1a1a2e"/>
+  <g transform="translate(200,240)" fill="#4a4a6a">
+    <rect x="-30" y="-25" width="60" height="50" rx="4" fill="none" stroke="#4a4a6a" stroke-width="2"/>
+    <circle cx="-14" cy="-10" r="5" fill="#4a4a6a"/>
+    <path d="M-26 20 L-8 0 L4 12 L14 2 L26 20Z" fill="#3a3a5a"/>
+  </g>
+  <text x="200" y="290" text-anchor="middle" fill="#6a6a8a" font-family="system-ui,sans-serif" font-size="14">Category</text>
+</svg>

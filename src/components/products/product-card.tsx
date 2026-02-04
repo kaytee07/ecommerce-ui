@@ -1,9 +1,9 @@
 'use client';
 
-import Image from 'next/image';
+import { SafeImage } from '@/components/ui';
 import Link from 'next/link';
-import { Product } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { Product, Inventory } from '@/types';
+import { formatCurrency, getProductThumbnailUrl } from '@/lib/utils';
 import { ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/lib/stores';
 import { useState } from 'react';
@@ -11,53 +11,61 @@ import { useState } from 'react';
 interface ProductCardProps {
   product: Product;
   showQuickAdd?: boolean;
+  inventory?: Inventory | null;
 }
 
-export function ProductCard({ product, showQuickAdd = true }: ProductCardProps) {
+export function ProductCard({ product, showQuickAdd = true, inventory }: ProductCardProps) {
   const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const { addItem } = useCartStore();
+  const hasOptions = Array.isArray((product.attributes as { options?: unknown } | undefined)?.options)
+    && ((product.attributes as { options?: unknown }).options as unknown[]).length > 0;
 
   const handleQuickAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsAdding(true);
+    setAddError(null);
     try {
       await addItem(product.id, 1);
     } catch (err) {
-      // Error handled by store
+      // Show brief error feedback
+      setAddError('Failed to add');
+      setTimeout(() => setAddError(null), 2000);
     } finally {
       setIsAdding(false);
     }
   };
 
-  const hasDiscount = product.discountPercentage && product.discountPercentage > 0;
-  const displayPrice = hasDiscount && product.discountedPrice ? product.discountedPrice : product.price;
-  const isOutOfStock = product.stockQuantity <= 0;
+  const discountPercent = product.currentDiscountPercentage ?? product.discountPercentage;
+  const hasDiscount = typeof discountPercent === 'number' && discountPercent > 0;
+  const displayPrice = hasDiscount && product.effectivePrice ? product.effectivePrice : product.price;
+
+  // Determine stock status from inventory prop first, then fallback to product.stockQuantity
+  const availableQty = inventory?.availableQuantity ??
+    (typeof product.stockQuantity === 'number' ? product.stockQuantity : null);
+  const isOutOfStock = availableQty !== null ? availableQty <= 0 : false;
+  const isLowStock = availableQty !== null && availableQty > 0 && availableQty <= 5;
 
   return (
     <Link href={`/products/${product.slug}`} className="group block">
       <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200">
         {/* Image Container */}
         <div className="relative aspect-product bg-gray-100 overflow-hidden">
-          {product.imageUrl ? (
-            <Image
-              src={product.imageUrl}
-              alt={product.name}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-              No Image
-            </div>
-          )}
+          <SafeImage
+            src={getProductThumbnailUrl(product) || '/placeholder.svg'}
+            alt={product.name}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            fallbackSrc="/placeholder.svg"
+          />
 
           {/* Badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1">
             {hasDiscount && (
               <span className="px-2 py-1 bg-error text-white text-xs font-bold rounded">
-                -{product.discountPercentage}%
+                -{discountPercent}%
               </span>
             )}
             {product.featured && (
@@ -68,7 +76,7 @@ export function ProductCard({ product, showQuickAdd = true }: ProductCardProps) 
           </div>
 
           {/* Quick Add Button */}
-          {showQuickAdd && !isOutOfStock && (
+          {showQuickAdd && !isOutOfStock && !hasOptions && (
             <button
               onClick={handleQuickAdd}
               disabled={isAdding}
@@ -85,6 +93,13 @@ export function ProductCard({ product, showQuickAdd = true }: ProductCardProps) 
               <span className="px-4 py-2 bg-white text-gray-900 font-medium rounded">
                 Out of Stock
               </span>
+            </div>
+          )}
+
+          {/* Add Error Feedback */}
+          {addError && (
+            <div className="absolute bottom-2 left-2 right-2 bg-error text-white text-xs py-1 px-2 rounded text-center">
+              {addError}
             </div>
           )}
         </div>
@@ -107,6 +122,12 @@ export function ProductCard({ product, showQuickAdd = true }: ProductCardProps) 
               </span>
             )}
           </div>
+          {/* Low Stock Warning */}
+          {isLowStock && !isOutOfStock && (
+            <p className="mt-1 text-xs text-warning font-medium">
+              Only {availableQty} left
+            </p>
+          )}
         </div>
       </div>
     </Link>

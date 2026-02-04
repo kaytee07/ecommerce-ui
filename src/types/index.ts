@@ -33,6 +33,7 @@ export interface User {
   fullName: string;
   roles: string[];
   emailVerified: boolean;
+  mustChangePassword?: boolean;
   createdAt: string;
 }
 
@@ -63,10 +64,14 @@ export interface Product {
   price: number;
   compareAtPrice?: number;
   costPrice?: number;
+  // Storefront discount fields (backend ProductDTO)
+  currentDiscountPercentage?: number;
+  effectivePrice?: number;
+  // Admin discount fields (backend ProductAdminDTO)
   discountPercentage?: number;
-  discountedPrice?: number;
-  discountStartDate?: string;
-  discountEndDate?: string;
+  discountStart?: string;
+  discountEnd?: string;
+  discountActive?: boolean;
   sku: string;
   categoryId: string;
   categoryName?: string;
@@ -78,12 +83,22 @@ export interface Product {
   featured?: boolean;
   isFeatured?: boolean;
   status?: 'ACTIVE' | 'INACTIVE' | 'DRAFT';
-  stockQuantity: number;
+  stockQuantity?: number;
   lowStockThreshold?: number;
   tags?: string[];
-  attributes?: Record<string, string>;
+  attributes?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductOption {
+  name: string;
+  values: string[];
+  required?: boolean;
+}
+
+export interface ProductOptionsAttribute {
+  options: ProductOption[];
 }
 
 export interface ProductImage {
@@ -103,7 +118,7 @@ export interface ProductCreateRequest {
   categoryId: string;
   active?: boolean;
   featured?: boolean;
-  attributes?: Record<string, string>;
+  attributes?: Record<string, unknown>;
 }
 
 export interface ProductUpdateRequest {
@@ -115,7 +130,7 @@ export interface ProductUpdateRequest {
   categoryId?: string;
   active?: boolean;
   featured?: boolean;
-  attributes?: Record<string, string>;
+  attributes?: Record<string, unknown>;
 }
 
 export interface ProductSearchParams {
@@ -163,40 +178,55 @@ export interface CategoryCreateRequest {
   displayOrder?: number;
 }
 
+// Storefront Types
+export interface StorefrontBanner {
+  id: string;
+  slot: 'PRIMARY' | 'SECONDARY';
+  eyebrow?: string | null;
+  headline?: string | null;
+  subheadline?: string | null;
+  ctaText?: string | null;
+  ctaLink?: string | null;
+  imageUrl?: string | null;
+  active: boolean;
+  updatedAt?: string | null;
+}
+
 // Cart Types
 export interface Cart {
   id: string;
   userId: string;
   items: CartItem[];
   itemCount: number;
-  subtotal: number;
+  totalAmount: number;
   updatedAt: string;
 }
 
 export interface CartItem {
   productId: string;
+  itemKey?: string;
   productName: string;
-  productSlug: string;
-  productImage?: string;
   quantity: number;
-  unitPrice: number;
+  priceAtAdd: number;
   subtotal: number;
-  stockAvailable: number;
+  selectedOptions?: Record<string, string>;
 }
 
 export interface AddToCartRequest {
   productId: string;
   quantity: number;
+  selectedOptions?: Record<string, string>;
 }
 
 export interface UpdateCartItemRequest {
   quantity: number;
+  itemKey?: string;
+  selectedOptions?: Record<string, string>;
 }
 
 // Order Types
 export type OrderStatus =
   | 'PENDING'
-  | 'PENDING_PAYMENT'
   | 'CONFIRMED'
   | 'PROCESSING'
   | 'SHIPPED'
@@ -206,20 +236,20 @@ export type OrderStatus =
 
 export interface Order {
   id: string;
-  orderNumber: string;
   userId: string;
+  guestEmail?: string;
+  guestName?: string;
+  userUsername?: string;
+  customerUsername?: string;
+  customerName?: string;
+  orderNumber?: string;
+  orderCode?: string;
   status: OrderStatus;
   items: OrderItem[];
   itemCount: number;
-  subtotal: number;
-  shippingCost: number;
   totalAmount: number;
-  shippingAddress: ShippingAddress;
-  paymentMethod: string;
-  trackingNumber?: string;
-  carrier?: string;
   notes?: string;
-  statusHistory: OrderStatusHistory[];
+  shippingAddress?: ShippingAddress;
   createdAt: string;
   updatedAt: string;
 }
@@ -227,50 +257,42 @@ export interface Order {
 export interface OrderItem {
   productId: string;
   productName: string;
-  productSlug: string;
-  productImage?: string;
   sku: string;
   quantity: number;
-  unitPrice: number;
+  priceAtOrder: number;
+  selectedOptions?: Record<string, string>;
   subtotal: number;
 }
 
 export interface OrderHistory {
   id: string;
-  orderNumber: string;
+  orderNumber?: string;
+  orderCode?: string;
   status: OrderStatus;
+  statusDisplayName?: string;
+  guestEmail?: string;
+  guestName?: string;
   itemCount: number;
   totalAmount: number;
   createdAt: string;
-}
-
-export interface OrderStatusHistory {
-  status: OrderStatus;
-  reason?: string;
-  changedBy?: string;
-  changedAt: string;
-}
-
-export interface ShippingAddress {
-  street: string;
-  city: string;
-  region: string;
-  country: string;
-  postalCode?: string;
-  phone?: string;
-}
-
-export interface CreateOrderRequest {
-  shippingAddress: ShippingAddress;
-  paymentMethod: 'MOBILE_MONEY' | 'CARD';
-  notes?: string;
+  previewProductId?: string;
+  previewProductName?: string;
+  shippingAddress?: ShippingAddress;
 }
 
 export interface UpdateOrderStatusRequest {
   status: OrderStatus;
   reason?: string;
-  trackingNumber?: string;
-  carrier?: string;
+}
+
+export interface ShippingAddress {
+  street?: string;
+  city?: string;
+  region?: string;
+  country?: string;
+  postalCode?: string;
+  phone?: string;
+  gps?: string;
 }
 
 // Payment Types
@@ -280,23 +302,29 @@ export type PaymentGateway = 'HUBTEL' | 'PAYSTACK';
 export interface Payment {
   id: string;
   orderId: string;
+  orderNumber?: string;
+  orderCode?: string;
   userId: string;
+  customerUsername?: string;
+  customerName?: string;
   status: PaymentStatus;
   gateway: PaymentGateway;
   transactionRef: string;
+  idempotencyKey?: string;
   amount: number;
   currency: string;
   checkoutUrl?: string;
   failureReason?: string;
   refundReason?: string;
-  refundAmount?: number;
+  refundedBy?: string;
   refundedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface InitiatePaymentRequest {
-  gateway?: PaymentGateway;
+  orderId: string;
+  idempotencyKey: string;
   callbackUrl?: string;
 }
 
@@ -309,17 +337,17 @@ export interface RefundRequest {
 export interface Inventory {
   id: string;
   productId: string;
-  productName: string;
-  sku: string;
+  productName?: string;
+  sku?: string;
   stockQuantity: number;
   reservedQuantity: number;
   availableQuantity: number;
-  lowStockThreshold: number;
   updatedAt: string;
 }
 
 export interface InventoryAdjustRequest {
-  adjustment: number;
+  quantity: number;
+  adjustmentType: string;
   reason: string;
 }
 
@@ -330,6 +358,7 @@ export type NotificationType =
   | 'ORDER_PLACED'
   | 'ORDER_CANCELLED'
   | 'PAYMENT_FAILED'
+  | 'ANNOUNCEMENT'
   | 'SYSTEM_ALERT'
   | 'INVENTORY_ADJUSTMENT';
 
@@ -358,20 +387,25 @@ export interface NotificationSummary {
 
 // Analytics Types
 export interface DashboardData {
-  totalOrders: number;
-  totalRevenue: number;
-  avgOrderValue: number;
-  pendingOrders: number;
-  lowStockCount: number;
-  dailySales: DailySales[];
+  todayRevenue: number;
+  weekRevenue: number;
+  monthRevenue: number;
+  todayOrderCount: number;
+  weekOrderCount: number;
+  monthOrderCount: number;
+  salesFunnel: SalesFunnel | null;
   topProducts: TopProduct[];
+  lowStockAlerts: LowStockProduct[];
+  successfulPayments: number;
+  failedPayments: number;
+  totalPaymentVolume: number;
   generatedAt: string;
 }
 
 export interface DailySales {
-  date: string;
+  saleDate: string;
   orderCount: number;
-  revenue: number;
+  totalRevenue: number;
   avgOrderValue: number;
   uniqueCustomers: number;
 }
@@ -387,10 +421,22 @@ export interface TopProduct {
 export interface SalesFunnel {
   cartCount: number;
   orderCount: number;
-  pendingOrders: number;
-  successfulOrders: number;
   successfulPayments: number;
   failedPayments: number;
+  pendingOrders: number;
+  successfulOrders: number;
+  cartToOrderRate: number;
+  orderToPaidRate: number;
+}
+
+export interface LowStockProduct {
+  inventoryId: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  stockQuantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
 }
 
 export interface CustomerLifetimeValue {

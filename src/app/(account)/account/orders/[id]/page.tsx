@@ -5,23 +5,14 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
-import { Order, Payment } from '@/types';
-import { StatusBadge, Button, Skeleton, ConfirmModal } from '@/components/ui';
-import { formatCurrency, formatDate, formatDateTime, formatOrderNumber } from '@/lib/utils';
-import { ArrowLeft, Package, Truck, CheckCircle, XCircle, Clock, MapPin, CreditCard, Loader2, RefreshCcw, AlertCircle } from 'lucide-react';
-
-const statusIcons: Record<string, typeof Package> = {
-  PENDING: Clock,
-  PENDING_PAYMENT: Clock,
-  CONFIRMED: Package,
-  PROCESSING: Package,
-  SHIPPED: Truck,
-  DELIVERED: CheckCircle,
-  CANCELLED: XCircle,
-  REFUNDED: XCircle,
-};
+import { Order, Payment, Product } from '@/types';
+import { StatusBadge, Button, Skeleton } from '@/components/ui';
+import { formatCurrency, formatDate, getProductThumbnailUrl } from '@/lib/utils';
+import { ArrowLeft, CheckCircle, XCircle, Clock, CreditCard, Loader2, RefreshCcw, AlertCircle } from 'lucide-react';
 
 export default function OrderDetailPage() {
+  const getItemKey = (item: { productId: string; selectedOptions?: Record<string, string> }) =>
+    `${item.productId}-${JSON.stringify(item.selectedOptions || {})}`;
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,16 +21,61 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentVerified, setPaymentVerified] = useState(false);
+  const [itemImages, setItemImages] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchOrder();
     fetchPayment();
   }, [orderId]);
+
+  useEffect(() => {
+    if (!order?.items || order.items.length === 0) return;
+    const missingIds = order.items
+      .map((item) => item.productId)
+      .filter((id) => !itemImages[id]);
+    if (missingIds.length === 0) return;
+
+    let cancelled = false;
+    const fetchImages = async () => {
+      try {
+        const results = await Promise.all(
+          missingIds.map(async (id) => {
+            try {
+              const res = await apiClient.get<{ status: boolean; data: Product }>(`/store/products/${id}`);
+              return { id, product: res.data.data };
+            } catch {
+              return null;
+            }
+          })
+        );
+        if (cancelled) return;
+        setItemImages((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          results.forEach((result) => {
+            if (result?.product) {
+              const thumb = getProductThumbnailUrl(result.product);
+              if (thumb && next[result.id] !== thumb) {
+                next[result.id] = thumb;
+                changed = true;
+              }
+            }
+          });
+          return changed ? next : prev;
+        });
+      } catch {
+        // ignore
+      }
+    };
+
+    fetchImages();
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.items, itemImages]);
 
   // Auto-verify payment when returning from payment gateway
   useEffect(() => {
@@ -65,10 +101,14 @@ export default function OrderDetailPage() {
 
   const fetchPayment = async () => {
     try {
-      const response = await apiClient.get<{ status: boolean; data: Payment; message: string }>(
+      const response = await apiClient.get<{ status: boolean; data: Payment[]; message: string }>(
         `/store/payments/order/${orderId}`
       );
-      setPayment(response.data.data);
+      const payments = response.data.data || [];
+      const latest = payments
+        .slice()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      setPayment(latest || null);
     } catch (err) {
       // Payment may not exist yet, that's okay
       console.log('No payment found for order', err);
@@ -108,6 +148,8 @@ export default function OrderDetailPage() {
         data: { checkoutUrl: string };
         message: string;
       }>(`/store/payments/${orderId}/initiate`, {
+        orderId,
+        idempotencyKey: crypto.randomUUID(),
         callbackUrl: `${window.location.origin}/account/orders/${orderId}?verify=true`,
       });
 
@@ -121,20 +163,6 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleCancel = async () => {
-    setIsCancelling(true);
-    try {
-      await apiClient.post(`/store/orders/${orderId}/cancel`);
-      await fetchOrder();
-    } catch (err) {
-      console.error('Failed to cancel order', err);
-    } finally {
-      setIsCancelling(false);
-      setShowCancelModal(false);
-    }
-  };
-
-  const canCancel = order && ['PENDING', 'PENDING_PAYMENT', 'CONFIRMED'].includes(order.status);
 
   if (isLoading) {
     return (
@@ -163,7 +191,7 @@ export default function OrderDetailPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Order {formatOrderNumber(order.orderNumber)}
+              Order {order.id.slice(0, 8).toUpperCase()}
             </h1>
             <p className="text-sm text-gray-500">Placed on {formatDate(order.createdAt)}</p>
           </div>
@@ -172,7 +200,7 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Payment Status */}
-      {(payment || order?.status === 'PENDING_PAYMENT') && (
+      {payment && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-4">
             <CreditCard className="h-5 w-5 text-gray-400" />
@@ -270,45 +298,15 @@ export default function OrderDetailPage() {
                 )}
               </div>
             </div>
-          ) : order?.status === 'PENDING_PAYMENT' ? (
-            <div className="text-center py-4">
-              <p className="text-gray-500 mb-4">This order is awaiting payment.</p>
-              <Button onClick={initiatePayment}>
-                Pay Now
-              </Button>
-            </div>
           ) : null}
         </div>
       )}
-
-      {/* Order Timeline */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="font-semibold text-gray-900 mb-4">Order Timeline</h2>
-        <div className="space-y-4">
-          {order.statusHistory.map((history, index) => {
-            const Icon = statusIcons[history.status] || Package;
-            return (
-              <div key={index} className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                    <Icon className="h-4 w-4 text-white" />
-                  </div>
-                  {index < order.statusHistory.length - 1 && (
-                    <div className="w-0.5 h-full bg-gray-200 my-1" />
-                  )}
-                </div>
-                <div className="pb-4">
-                  <p className="font-medium text-gray-900">{history.status.replace('_', ' ')}</p>
-                  <p className="text-sm text-gray-500">{formatDateTime(history.changedAt)}</p>
-                  {history.reason && (
-                    <p className="text-sm text-gray-600 mt-1">{history.reason}</p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      {!payment && order.status === 'PENDING' && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
+          <p className="text-gray-500 mb-4">No payment found for this order yet.</p>
+          <Button onClick={initiatePayment}>Pay Now</Button>
         </div>
-      </div>
+      )}
 
       {/* Order Items */}
       <div className="bg-white rounded-lg border border-gray-200">
@@ -317,34 +315,38 @@ export default function OrderDetailPage() {
         </div>
         <div className="divide-y divide-gray-200">
           {order.items.map((item) => (
-            <div key={item.productId} className="flex gap-4 p-6">
-              <Link
-                href={`/products/${item.productSlug}`}
-                className="relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0"
-              >
-                {item.productImage && (
+            <div key={getItemKey(item)} className="flex gap-4 p-6">
+              <div className="relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center text-gray-400 text-xs">
+                {itemImages[item.productId] ? (
                   <Image
-                    src={item.productImage}
+                    src={itemImages[item.productId]}
                     alt={item.productName}
                     fill
                     sizes="80px"
                     className="object-cover"
                   />
+                ) : (
+                  'No Image'
                 )}
-              </Link>
+              </div>
               <div className="flex-1">
-                <Link
-                  href={`/products/${item.productSlug}`}
-                  className="font-medium text-gray-900 hover:text-primary"
-                >
-                  {item.productName}
-                </Link>
+                <p className="font-medium text-gray-900">{item.productName}</p>
                 <p className="text-sm text-gray-500">SKU: {item.sku}</p>
                 <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
+                  <div className="mt-2 text-xs text-gray-500 space-y-1">
+                    {Object.entries(item.selectedOptions).map(([key, value]) => (
+                      <div key={key} className="flex items-center gap-2">
+                        <span className="uppercase tracking-wider text-gray-400">{key}</span>
+                        <span className="font-medium text-gray-600">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="text-right">
                 <p className="font-semibold text-gray-900">{formatCurrency(item.subtotal)}</p>
-                <p className="text-sm text-gray-500">{formatCurrency(item.unitPrice)} each</p>
+                <p className="text-sm text-gray-500">{formatCurrency(item.priceAtOrder)} each</p>
               </div>
             </div>
           ))}
@@ -353,14 +355,6 @@ export default function OrderDetailPage() {
         {/* Order Summary */}
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
           <div className="space-y-2">
-            <div className="flex justify-between text-gray-600">
-              <span>Subtotal</span>
-              <span>{formatCurrency(order.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-gray-600">
-              <span>Shipping</span>
-              <span>{formatCurrency(order.shippingCost)}</span>
-            </div>
             <div className="flex justify-between text-lg font-semibold text-gray-900 pt-2 border-t border-gray-200">
               <span>Total</span>
               <span>{formatCurrency(order.totalAmount)}</span>
@@ -369,61 +363,26 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Shipping Address */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <MapPin className="h-5 w-5 text-gray-400" />
-          <h2 className="font-semibold text-gray-900">Shipping Address</h2>
-        </div>
-        <address className="not-italic text-gray-600">
-          {order.shippingAddress.street}<br />
-          {order.shippingAddress.city}, {order.shippingAddress.region}<br />
-          {order.shippingAddress.country}
-          {order.shippingAddress.postalCode && ` ${order.shippingAddress.postalCode}`}
-          {order.shippingAddress.phone && (
-            <>
-              <br />
-              Phone: {order.shippingAddress.phone}
-            </>
-          )}
-        </address>
-      </div>
-
-      {/* Tracking Info */}
-      {order.trackingNumber && (
+      {order.shippingAddress && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Truck className="h-5 w-5 text-gray-400" />
-            <h2 className="font-semibold text-gray-900">Tracking Information</h2>
+          <h2 className="font-semibold text-gray-900 mb-4">Shipping Address</h2>
+          <div className="text-sm text-gray-600 space-y-1">
+            {order.shippingAddress.street && <p>{order.shippingAddress.street}</p>}
+            {(order.shippingAddress.city || order.shippingAddress.region) && (
+              <p>
+                {order.shippingAddress.city}
+                {order.shippingAddress.city && order.shippingAddress.region ? ', ' : ''}
+                {order.shippingAddress.region}
+              </p>
+            )}
+            {order.shippingAddress.country && <p>{order.shippingAddress.country}</p>}
+            {order.shippingAddress.postalCode && <p>Postal Code: {order.shippingAddress.postalCode}</p>}
+            {order.shippingAddress.phone && <p>Phone: {order.shippingAddress.phone}</p>}
+            {order.shippingAddress.gps && <p>GPS: {order.shippingAddress.gps}</p>}
           </div>
-          <p className="text-gray-600">
-            <span className="font-medium">Carrier:</span> {order.carrier || 'N/A'}
-          </p>
-          <p className="text-gray-600">
-            <span className="font-medium">Tracking Number:</span> {order.trackingNumber}
-          </p>
         </div>
       )}
 
-      {/* Cancel Button */}
-      {canCancel && (
-        <div className="flex justify-end">
-          <Button variant="danger" onClick={() => setShowCancelModal(true)}>
-            Cancel Order
-          </Button>
-        </div>
-      )}
-
-      <ConfirmModal
-        isOpen={showCancelModal}
-        onClose={() => setShowCancelModal(false)}
-        onConfirm={handleCancel}
-        title="Cancel Order"
-        message="Are you sure you want to cancel this order? This action cannot be undone."
-        confirmText="Cancel Order"
-        variant="danger"
-        isLoading={isCancelling}
-      />
     </div>
   );
 }

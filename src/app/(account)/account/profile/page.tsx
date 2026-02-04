@@ -62,6 +62,10 @@ export default function ProfilePage() {
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       });
+      const response = await apiClient.get<{ status: boolean; data: typeof user; message: string }>(
+        '/auth/me'
+      );
+      setUser(response.data.data);
       passwordForm.reset();
       toast.success('Password updated successfully');
     } catch (err: unknown) {
@@ -75,6 +79,11 @@ export default function ProfilePage() {
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
+      {user?.mustChangePassword && (
+        <div className="p-4 bg-yellow-50 text-yellow-800 rounded-lg">
+          You must change your password before continuing to other areas of the app.
+        </div>
+      )}
 
       {/* Profile Form */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">

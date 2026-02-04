@@ -1,37 +1,50 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
-import { Product, Page, Category } from '@/types';
-import { Button, Badge, Skeleton, ConfirmModal, Select } from '@/components/ui';
-import { formatCurrency } from '@/lib/utils';
+import { Product, Page, Category, Inventory } from '@/types';
+import { Button, Badge, Skeleton, ConfirmModal, Select, Input } from '@/components/ui';
+import { formatCurrency, getProductThumbnailUrl } from '@/lib/utils';
 import { Plus, Pencil, Trash2, Search, Image as ImageIcon } from 'lucide-react';
+import { useAuthStore } from '@/lib/stores';
+import { getPermissions } from '@/lib/auth/permissions';
 
 export default function AdminProductsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const permissions = useMemo(
+    () => (user ? getPermissions(user.roles) : null),
+    [user?.roles?.join('|')]
+  );
+  const lastFetchKeyRef = useRef<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [inventoryByProductId, setInventoryByProductId] = useState<Record<string, Inventory | null>>({});
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; product: Product | null }>({
     open: false,
     product: null,
   });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showBulkDiscount, setShowBulkDiscount] = useState(false);
+  const [bulkApplyToAll, setBulkApplyToAll] = useState(false);
+  const [bulkCategoryId, setBulkCategoryId] = useState('');
+  const [bulkDiscountPercentage, setBulkDiscountPercentage] = useState('');
+  const [bulkDiscountStart, setBulkDiscountStart] = useState('');
+  const [bulkDiscountEnd, setBulkDiscountEnd] = useState('');
+  const [bulkDiscountError, setBulkDiscountError] = useState<string | null>(null);
+  const [isApplyingBulkDiscount, setIsApplyingBulkDiscount] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, [searchQuery, categoryFilter]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      if (searchQuery) params.set('q', searchQuery);
-      if (categoryFilter) params.set('categoryId', categoryFilter);
-      params.set('size', '50');
+      params.set('size', '200');
 
       const [productsRes, categoriesRes] = await Promise.all([
         apiClient.get<{ status: boolean; data: Page<Product>; message: string }>(
@@ -40,17 +53,52 @@ export default function AdminProductsPage() {
         apiClient.get<{ status: boolean; data: Category[]; message: string }>('/admin/categories'),
       ]);
 
-
-
-      setProducts(productsRes.data.data?.content || []);
+      const allProducts = productsRes.data.data?.content || [];
+      const filtered = allProducts.filter((product) => {
+        const matchesQuery = searchQuery
+          ? product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
+          : true;
+        const matchesCategory = categoryFilter ? product.categoryId === categoryFilter : true;
+        return matchesQuery && matchesCategory;
+      });
+      setProducts(filtered);
       setCategories(categoriesRes.data.data || []);
+      const productIds = filtered.map((product) => product.id);
+      if (productIds.length > 0) {
+        try {
+          const invRes = await apiClient.post<{ status: boolean; data: Inventory[]; message: string }>(
+            '/admin/inventory/batch',
+            productIds
+          );
+          const inventoryMap: Record<string, Inventory> = {};
+          (invRes.data.data || []).forEach((inv) => {
+            inventoryMap[inv.productId] = inv;
+          });
+          setInventoryByProductId((prev) => ({ ...prev, ...inventoryMap }));
+        } catch (invErr) {
+          console.error('Failed to fetch inventory batch', invErr);
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch products', err);
       setProducts([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchQuery, categoryFilter]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!permissions?.canViewAdminProducts) {
+      router.push('/admin');
+      return;
+    }
+    const key = `${user.id || user.username || 'user'}:${searchQuery}:${categoryFilter || 'all'}`;
+    if (lastFetchKeyRef.current === key) return;
+    lastFetchKeyRef.current = key;
+    fetchData();
+  }, [searchQuery, categoryFilter, user, permissions?.canViewAdminProducts, router, fetchData]);
 
   const handleDelete = async () => {
     if (!deleteModal.product) return;
@@ -66,17 +114,137 @@ export default function AdminProductsPage() {
     }
   };
 
+  const normalizeDateTimePayload = (value: string) => {
+    if (!value) return undefined;
+    return value.length === 16 ? `${value}:00` : value;
+  };
+
+  const handleApplyBulkDiscount = async () => {
+    setBulkDiscountError(null);
+    setIsApplyingBulkDiscount(true);
+    try {
+      const percentage = Number(bulkDiscountPercentage);
+      if (Number.isNaN(percentage)) {
+        setBulkDiscountError('Discount percentage is required.');
+        return;
+      }
+      if (!bulkApplyToAll && !bulkCategoryId) {
+        setBulkDiscountError('Select a category or choose apply to all.');
+        return;
+      }
+      const payload: Record<string, unknown> = {
+        discountPercentage: percentage,
+        applyToAll: bulkApplyToAll,
+      };
+      if (!bulkApplyToAll && bulkCategoryId) {
+        payload.categoryId = bulkCategoryId;
+      }
+      const startDate = normalizeDateTimePayload(bulkDiscountStart);
+      const endDate = normalizeDateTimePayload(bulkDiscountEnd);
+      if (startDate) payload.startDate = startDate;
+      if (endDate) payload.endDate = endDate;
+
+      await apiClient.post('/admin/products/bulk-discount', payload);
+      setShowBulkDiscount(false);
+      setBulkDiscountPercentage('');
+      setBulkDiscountStart('');
+      setBulkDiscountEnd('');
+      await fetchData();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setBulkDiscountError(error.response?.data?.message || 'Failed to apply bulk discount.');
+    } finally {
+      setIsApplyingBulkDiscount(false);
+    }
+  };
+
+  if (user && !permissions?.canViewAdminProducts) {
+    return null;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-        <Link href="/admin/products/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => setShowBulkDiscount((prev) => !prev)}>
+            Bulk Discount
           </Button>
-        </Link>
+          <Link href="/admin/products/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product
+            </Button>
+          </Link>
+        </div>
       </div>
+
+      {showBulkDiscount && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Apply Bulk Discount</h2>
+            <Button variant="outline" onClick={() => setShowBulkDiscount(false)}>
+              Close
+            </Button>
+          </div>
+          {bulkDiscountError && (
+            <div className="mb-4 p-3 bg-error-bg text-error rounded-lg text-sm">
+              {bulkDiscountError}
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <Input
+              label="Discount %"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              value={bulkDiscountPercentage}
+              onChange={(e) => setBulkDiscountPercentage(e.target.value)}
+            />
+            <Select
+              label="Category"
+              options={[
+                { value: '', label: 'Select category' },
+                ...categories.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              value={bulkCategoryId}
+              onChange={(e) => setBulkCategoryId(e.target.value)}
+              disabled={bulkApplyToAll}
+            />
+            <Input
+              label="Start Date (Optional)"
+              type="datetime-local"
+              value={bulkDiscountStart}
+              onChange={(e) => setBulkDiscountStart(e.target.value)}
+            />
+            <Input
+              label="End Date (Optional)"
+              type="datetime-local"
+              value={bulkDiscountEnd}
+              onChange={(e) => setBulkDiscountEnd(e.target.value)}
+            />
+          </div>
+          <div className="mt-4 flex items-center justify-between">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={bulkApplyToAll}
+                onChange={(e) => setBulkApplyToAll(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              Apply to all products
+            </label>
+            <Button
+              onClick={handleApplyBulkDiscount}
+              isLoading={isApplyingBulkDiscount}
+              disabled={bulkDiscountPercentage.trim() === ''}
+            >
+              Apply Discount
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -151,9 +319,9 @@ export default function AdminProductsPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                          {product.imageUrl ? (
+                          {getProductThumbnailUrl(product) ? (
                             <Image
-                              src={product.imageUrl}
+                              src={getProductThumbnailUrl(product) as string}
                               alt={product.name}
                               width={48}
                               height={48}
@@ -181,18 +349,8 @@ export default function AdminProductsPage() {
                         <p className="text-xs text-error">-{product.discountPercentage}%</p>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={
-                          product.stockQuantity <= 0
-                            ? 'text-error font-medium'
-                            : product.stockQuantity <= 5
-                            ? 'text-warning font-medium'
-                            : 'text-gray-900'
-                        }
-                      >
-                        {product.stockQuantity}
-                      </span>
+                    <td className="px-6 py-4 text-gray-500">
+                      {inventoryByProductId[product.id]?.availableQuantity ?? '—'}
                     </td>
                     <td className="px-6 py-4">
                       <Badge variant={product.active ? 'success' : 'default'}>

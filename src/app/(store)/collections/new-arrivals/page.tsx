@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/ui';
 import { Skeleton } from '@/components/ui';
 import { apiClient } from '@/lib/api/client';
-import { Product, Page } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { Product, Page, Inventory } from '@/types';
+import { formatCurrency, getProductOriginalImageUrl } from '@/lib/utils';
 import { ChevronRight, ChevronDown, Sparkles } from 'lucide-react';
 
 export default function NewArrivalsPage() {
@@ -29,23 +29,60 @@ export default function NewArrivalsPage() {
       );
 
       const allProducts = response.data.data?.content || [];
-      console.log(allProducts);
+
+      const isProductActive = (product: Product) => {
+        if (product.status && product.status !== 'ACTIVE') return false;
+        if (product.active === false) return false;
+        if (product.isActive === false) return false;
+        return true;
+      };
+
+      const visibleProducts = allProducts.filter(isProductActive);
 
       // Filter to products created within the last 30 days
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const newProducts = allProducts.filter(product => {
+      const newProducts = visibleProducts.filter(product => {
         const createdAt = new Date(product.createdAt);
         return createdAt >= thirtyDaysAgo;
       });
 
+      const displayProducts = newProducts.length === 0
+        ? visibleProducts.slice(0, 20)
+        : newProducts;
+      const productIds = displayProducts.map((product) => product.id);
+      let inventoryMap = new Map<string, Inventory>();
+
+      if (productIds.length > 0) {
+        try {
+          const inventoryRes = await apiClient.post<{ status: boolean; data: Inventory[]; message: string }>(
+            '/store/inventory/batch',
+            productIds
+          );
+          inventoryMap = new Map(
+            (inventoryRes.data.data || []).map((item) => [item.productId, item])
+          );
+        } catch (invErr) {
+          console.error('Failed to fetch inventory batch', invErr);
+        }
+      }
+
+      const enrichedProducts = displayProducts.map((product) => {
+        const inventory = inventoryMap.get(product.id);
+        if (!inventory) return product;
+        return {
+          ...product,
+          stockQuantity: inventory.availableQuantity,
+        };
+      });
+
       // If no products in last 30 days, show the 20 most recent products
       if (newProducts.length === 0) {
-        setProducts(allProducts.slice(0, 20));
-        setTotalElements(Math.min(allProducts.length, 20));
+        setProducts(enrichedProducts);
+        setTotalElements(Math.min(visibleProducts.length, 20));
       } else {
-        setProducts(newProducts);
+        setProducts(enrichedProducts);
         setTotalElements(newProducts.length);
       }
     } catch (err) {
@@ -158,12 +195,13 @@ export default function NewArrivalsPage() {
                 className="group"
               >
                 <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4 bg-white">
-                  <Image
-                    src={product.images?.[0]?.url || product.imageUrl || '/placeholder.jpg'}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                  />
+                      <SafeImage
+                        src={getProductOriginalImageUrl(product) || '/placeholder.svg'}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                        fallbackSrc="/placeholder.svg"
+                      />
                   {/* New badge */}
                   <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
                     New
@@ -173,7 +211,7 @@ export default function NewArrivalsPage() {
                       Sale
                     </span>
                   )}
-                  {product.stockQuantity <= 0 && (
+                  {typeof product.stockQuantity === 'number' && product.stockQuantity <= 0 && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                       <span className="text-white text-sm tracking-wider uppercase">Out of Stock</span>
                     </div>

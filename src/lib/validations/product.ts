@@ -9,7 +9,7 @@ export const productSchema = z.object({
   categoryId: z.string().uuid('Please select a category'),
   active: z.boolean().default(true),
   featured: z.boolean().default(false),
-  attributes: z.record(z.string()).optional(),
+  attributes: z.record(z.unknown()).optional(),
 });
 
 export const discountSchema = z.object({

@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuthStore } from '@/lib/stores';
 import { isAdmin, getPermissions } from '@/lib/auth/permissions';
+import { apiClient } from '@/lib/api/client';
+import { NotificationSummary } from '@/types';
 import { FullPageSpinner } from '@/components/ui';
 import {
   LayoutDashboard,
@@ -17,12 +19,13 @@ import {
   Users,
   BarChart3,
   Bell,
+  ClipboardList,
   Menu,
   X,
   LogOut,
   ChevronDown,
   Settings,
-  ClipboardList,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +37,7 @@ const navItems = [
   { href: '/admin/inventory', label: 'Inventory', icon: Warehouse, permission: 'canViewInventory' },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard, permission: 'canViewPayments' },
   { href: '/admin/customers', label: 'Customers', icon: Users, permission: 'canViewUsers' },
+  { href: '/admin/storefront', label: 'Storefront', icon: ImageIcon, permission: 'canManageStorefront' },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3, permission: 'canViewAnalytics' },
   { href: '/admin/notifications', label: 'Notifications', icon: Bell, permission: 'canViewNotifications' },
   { href: '/admin/audit-logs', label: 'Audit Logs', icon: ClipboardList, permission: 'canViewAuditLogs' },
@@ -46,13 +50,31 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, isLoading, user, logout, checkAuth } = useAuthStore();
+  const { isAuthenticated, isLoading, user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notificationSummary, setNotificationSummary] = useState<NotificationSummary | null>(null);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    // Call checkAuth only once on mount
+    useAuthStore.getState().checkAuth();
+  }, []); // Empty dependency array - only run once
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const response = await apiClient.get<{ status: boolean; data: NotificationSummary }>(
+          '/admin/notifications/summary'
+        );
+        setNotificationSummary(response.data.data || null);
+      } catch {
+        setNotificationSummary(null);
+      }
+    };
+    if (isAuthenticated) {
+      fetchSummary();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -116,6 +138,9 @@ export default function AdminLayout({
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
 
+            const unreadCount = item.href === '/admin/notifications'
+              ? notificationSummary?.totalUnread || 0
+              : 0;
             return (
               <Link
                 key={item.href}
@@ -127,7 +152,12 @@ export default function AdminLayout({
                 )}
               >
                 <Icon className="h-5 w-5" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {unreadCount > 0 && (
+                  <span className="min-w-[20px] h-5 px-1.5 text-xs rounded-full bg-white text-primary flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -210,7 +240,7 @@ export default function AdminLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-4 lg:p-8">{children}</main>
+        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

@@ -3,12 +3,11 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/ui';
 import { Skeleton } from '@/components/ui';
 import { apiClient } from '@/lib/api/client';
-import { Product, Page, Category } from '@/types';
-import { dummyProducts, dummyCategories } from '@/lib/data/dummy';
-import { formatCurrency, cn } from '@/lib/utils';
+import { Product, Category, Inventory } from '@/types';
+import { formatCurrency, cn, getProductThumbnailUrl, fetchBatchInventory } from '@/lib/utils';
 import { SlidersHorizontal, X, ChevronDown } from 'lucide-react';
 
 function ProductsContent() {
@@ -17,6 +16,7 @@ function ProductsContent() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [inventoryMap, setInventoryMap] = useState<Map<string, Inventory>>(new Map());
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -44,27 +44,26 @@ function ProductsContent() {
       params.set('sortDirection', sortDirection);
       params.set('size', '20');
 
-      const response = await apiClient.get<{ status: boolean; data: Page<Product>; message: string }>(
+      const response = await apiClient.get<{ status: boolean; data: Product[]; message: string }>(
         `/store/products/search?${params.toString()}`
       );
-      const content = response.data.data?.content || [];
+      const content = response.data.data || [];
       setProducts(content);
-      setTotalElements(response.data.data?.totalElements || content.length);
+      setTotalElements(content.length);
+
+      // Fetch inventory for products to show stock status
+      if (content.length > 0) {
+        const productIds = content.map((p) => p.id);
+        const invMap = await fetchBatchInventory(productIds);
+        setInventoryMap(invMap);
+      } else {
+        setInventoryMap(new Map());
+      }
     } catch (err) {
-      console.error('Failed to fetch products, using dummy data', err);
-      // Use dummy data as fallback
-      let filteredProducts = [...dummyProducts];
-      if (categoryId) {
-        filteredProducts = filteredProducts.filter(p => p.categoryId === categoryId);
-      }
-      if (minPrice) {
-        filteredProducts = filteredProducts.filter(p => p.price >= parseFloat(minPrice));
-      }
-      if (maxPrice) {
-        filteredProducts = filteredProducts.filter(p => p.price <= parseFloat(maxPrice));
-      }
-      setProducts(filteredProducts);
-      setTotalElements(filteredProducts.length);
+      console.error('Failed to fetch products', err);
+      setProducts([]);
+      setTotalElements(0);
+      setInventoryMap(new Map());
     } finally {
       setIsLoading(false);
     }
@@ -75,10 +74,10 @@ function ProductsContent() {
       const response = await apiClient.get<{ status: boolean; data: Category[]; message: string }>(
         '/store/categories'
       );
-      setCategories(response.data.data);
+      setCategories(response.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch categories, using dummy data', err);
-      setCategories(dummyCategories);
+      console.error('Failed to fetch categories', err);
+      setCategories([]);
     }
   };
 
@@ -272,28 +271,44 @@ function ProductsContent() {
               </div>
             ) : (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-                {products.map((product) => (
-                  <Link
-                    key={product.id}
-                    href={`/products/${product.slug}`}
-                    className="group"
-                  >
+                {products.map((product) => {
+                  const showNew = product.tags?.includes('new');
+                  const showSale = Boolean(product.compareAtPrice);
+                  const inventory = inventoryMap.get(product.id);
+                  const availableQty = inventory?.availableQuantity ?? null;
+                  const isOutOfStock = availableQty !== null && availableQty <= 0;
+                  const isLowStock = availableQty !== null && availableQty > 0 && availableQty <= 5;
+                  return (
+                    <Link
+                      key={product.id}
+                      href={`/products/${product.slug}`}
+                      className="group"
+                    >
                     <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
-                      <Image
-                        src={product.images?.[0]?.url || product.imageUrl || '/placeholder.jpg'}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                      />
-                      {product.compareAtPrice && (
-                        <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
-                          Sale
-                        </span>
-                      )}
-                      {product.tags?.includes('new') && (
+                        <SafeImage
+                          src={getProductThumbnailUrl(product) || '/placeholder.svg'}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                          fallbackSrc="/placeholder.svg"
+                        />
+                      {showNew && !isOutOfStock && (
                         <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
                           New
                         </span>
+                      )}
+                      {showSale && !isOutOfStock && (
+                        <span className={`absolute top-4 ${showNew ? 'right-4' : 'left-4'} bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase`}>
+                          Sale
+                        </span>
+                      )}
+                      {/* Out of Stock Overlay */}
+                      {isOutOfStock && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <span className="px-4 py-2 bg-white text-gray-900 font-medium rounded text-sm">
+                            Out of Stock
+                          </span>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-1">
@@ -313,9 +328,16 @@ function ProductsContent() {
                           </span>
                         )}
                       </div>
+                      {/* Low Stock Warning */}
+                      {isLowStock && !isOutOfStock && (
+                        <p className="text-xs text-orange-600 font-medium">
+                          Only {availableQty} left
+                        </p>
+                      )}
                     </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </main>
