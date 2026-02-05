@@ -13,7 +13,7 @@ export default function AuthLayout({
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <Link href="/" className="flex justify-center mb-8">
             <Image
-              src="/logo.png"
+              src="/weblogo.png"
               alt="World Genius"
               width={180}
               height={48}

@@ -508,10 +508,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Instagram Feed Placeholder */}
+      {/* Social Feed Placeholder */}
       <section className="container-full py-20 lg:py-32">
         <div className="text-center mb-12">
-          <p className="text-xs tracking-[0.3em] uppercase text-gray-500 mb-3">@worldg3nius</p>
+          <div className="text-xs tracking-[0.3em] uppercase text-gray-500 mb-3 flex items-center justify-center gap-4">
+            <a href="https://instagram.com/worldg3nius" target="_blank" rel="noopener noreferrer">
+              @worldg3nius
+            </a>
+            <a href="https://x.com/worldg3nius_" target="_blank" rel="noopener noreferrer">
+              @worldg3nius_
+            </a>
+            <a href="https://www.tiktok.com/@worldg3nius_" target="_blank" rel="noopener noreferrer">
+              @worldg3nius_
+            </a>
+          </div>
           <h2 className="font-heading text-4xl md:text-5xl font-medium tracking-tight">
             Follow Our Journey
           </h2>

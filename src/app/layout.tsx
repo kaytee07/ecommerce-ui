@@ -4,7 +4,7 @@ import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
   title: {
-    default: 'World Genius - Premium E-Commerce',
+    default: 'Worldg3nius',
     template: '%s | World Genius',
   },
   description: 'Your destination for premium products and exceptional quality.',

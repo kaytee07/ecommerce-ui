@@ -7,6 +7,19 @@ const protectedPaths = ['/account'];
 // Routes that require admin role
 const adminPaths = ['/admin'];
 
+function shouldEnforceCookieGuard(request: NextRequest): boolean {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!apiUrl) return true;
+
+  try {
+    const apiOrigin = new URL(apiUrl).origin;
+    const appOrigin = request.nextUrl.origin;
+    // In cross-origin deployments (e.g. Vercel + Render), auth cookies live on the API domain.
+    return apiOrigin === appOrigin;
+  } catch {
+    return true;
+  }
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -17,6 +30,11 @@ export function middleware(request: NextRequest) {
 
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
   const isAdmin = adminPaths.some((p) => pathname.startsWith(p));
+
+  if ((isProtected || isAdmin) && !shouldEnforceCookieGuard(request)) {
+    return NextResponse.next();
+  }
+
   // Redirect unauthenticated users to login for protected routes
   if ((isProtected || isAdmin) && !token) {
     const loginUrl = new URL('/login', request.url);

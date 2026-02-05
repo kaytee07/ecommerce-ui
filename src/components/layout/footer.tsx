@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Instagram, Twitter, Facebook } from 'lucide-react';
+import { Instagram, Twitter, Music2 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { Category } from '@/types';
 
@@ -101,7 +101,7 @@ export function Footer() {
           <div className="lg:col-span-2">
             <Link href="/">
               <Image
-                src="/logo.png"
+                src="/weblogo.png"
                 alt="World Genius"
                 width={150}
                 height={40}
@@ -122,22 +122,22 @@ export function Footer() {
                 <Instagram className="h-5 w-5" />
               </a>
               <a
-                href="https://twitter.com/worldg3nius"
+                href="https://x.com/worldg3nius_"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 border border-white/30 hover:border-white hover:bg-white hover:text-primary transition-all"
-                aria-label="Twitter"
+                aria-label="X"
               >
                 <Twitter className="h-5 w-5" />
               </a>
               <a
-                href="https://facebook.com/worldg3nius"
+                href="https://www.tiktok.com/@worldg3nius_"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 border border-white/30 hover:border-white hover:bg-white hover:text-primary transition-all"
-                aria-label="Facebook"
+                aria-label="TikTok"
               >
-                <Facebook className="h-5 w-5" />
+                <Music2 className="h-5 w-5" />
               </a>
             </div>
           </div>

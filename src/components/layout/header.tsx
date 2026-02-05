@@ -123,7 +123,7 @@ export function Header() {
             {/* Logo - Centered on Mobile */}
             <Link href="/" className="lg:flex-shrink-0">
               <Image
-                src="/logo.png"
+                src="/weblogo.png"
                 alt="World Genius"
                 width={180}
                 height={50}
@@ -279,7 +279,7 @@ export function Header() {
           <div className="flex items-center justify-between h-20 px-6 border-b border-gray-200">
             <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
               <Image
-                src="/logo.png"
+                src="/weblogo.png"
                 alt="World Genius"
                 width={150}
                 height={40}

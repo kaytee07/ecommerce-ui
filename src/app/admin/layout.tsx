@@ -121,7 +121,7 @@ export default function AdminLayout({
         <div className="flex items-center justify-between h-16 px-4 border-b border-white/10">
           <Link href="/admin" className="flex items-center">
             <Image
-              src="/logo.png"
+              src="/weblogo.png"
               alt="World Genius"
               width={120}
               height={32}
