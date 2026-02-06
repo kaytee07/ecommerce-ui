@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api/client';
 import { Product, Category, Inventory } from '@/types';
 import { formatCurrency, cn, getProductThumbnailUrl, fetchBatchInventory } from '@/lib/utils';
 import { SlidersHorizontal, X, ChevronDown } from 'lucide-react';
+import { enablePlaceholders } from '@/lib/config';
 
 function ProductsContent() {
   const searchParams = useSearchParams();
@@ -286,11 +287,11 @@ function ProductsContent() {
                     >
                     <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
                         <SafeImage
-                          src={getProductThumbnailUrl(product) || '/placeholder.svg'}
+                          src={getProductThumbnailUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
                           alt={product.name}
                           fill
                           className="object-cover"
-                          fallbackSrc="/placeholder.svg"
+                          fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
                         />
                       {showNew && !isOutOfStock && (
                         <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">

@@ -10,6 +10,7 @@ import { useCartStore } from '@/lib/stores';
 import { Skeleton } from '@/components/ui';
 import { formatCurrency, cn, getProductImageMap, getProductThumbnailUrl } from '@/lib/utils';
 import { Minus, Plus, Check, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { enablePlaceholders } from '@/lib/config';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -257,9 +258,9 @@ export default function ProductDetailPage() {
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   className="object-cover"
                   priority
-                  fallbackSrc="/placeholder.svg"
+                  fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
                 />
-              ) : (
+              ) : enablePlaceholders ? (
                 <SafeImage
                   src="/placeholder.svg"
                   alt={product.name}
@@ -267,6 +268,7 @@ export default function ProductDetailPage() {
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   className="object-contain bg-gray-100"
                 />
+              ) : null}
               )}
               {product.compareAtPrice && (
                 <span className="absolute top-6 left-6 bg-primary text-white text-xs px-4 py-2 tracking-wider uppercase">
@@ -293,7 +295,7 @@ export default function ProductDetailPage() {
                       fill
                       sizes="96px"
                       className="object-cover"
-                      fallbackSrc="/placeholder.svg"
+                      fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
                     />
                   </button>
                 ))}
@@ -538,11 +540,11 @@ export default function ProductDetailPage() {
                 >
                   <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
                     <SafeImage
-                      src={getProductThumbnailUrl(relatedProduct) || '/placeholder.svg'}
+                      src={getProductThumbnailUrl(relatedProduct) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
                       alt={relatedProduct.name}
                       fill
                       className="object-cover"
-                      fallbackSrc="/placeholder.svg"
+                      fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
                     />
                   </div>
                   <div className="space-y-1">

@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api/client';
 import { Product, Page, Inventory } from '@/types';
 import { formatCurrency, getProductOriginalImageUrl } from '@/lib/utils';
 import { ChevronRight, ChevronDown, Sparkles } from 'lucide-react';
+import { enablePlaceholders } from '@/lib/config';
 
 export default function NewArrivalsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -195,13 +196,13 @@ export default function NewArrivalsPage() {
                 className="group"
               >
                 <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4 bg-white">
-                      <SafeImage
-                        src={getProductOriginalImageUrl(product) || '/placeholder.svg'}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                        fallbackSrc="/placeholder.svg"
-                      />
+                    <SafeImage
+                      src={getProductOriginalImageUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                      fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
+                    />
                   {/* New badge */}
                   <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
                     New

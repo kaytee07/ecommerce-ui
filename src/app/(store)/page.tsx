@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api/client';
 import { Product, Category, Page, Inventory, StorefrontBanner } from '@/types';
 import { formatCurrency, getProductOriginalImageUrl, fetchBatchInventory } from '@/lib/utils';
 import { Skeleton } from '@/components/ui';
+import { enablePlaceholders } from '@/lib/config';
 
 export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -125,10 +126,11 @@ export default function HomePage() {
   };
 
   const activeBanners = banners.filter((banner) => banner.active !== false);
-  const primaryBanner = activeBanners.find((banner) => banner.slot === 'PRIMARY') || defaultPrimaryBanner;
+  const primaryBanner = activeBanners.find((banner) => banner.slot === 'PRIMARY')
+    || (enablePlaceholders ? defaultPrimaryBanner : null);
   const secondaryBanner = activeBanners.find((banner) => banner.slot === 'SECONDARY');
 
-  const primaryHeadline = primaryBanner.headline || defaultPrimaryBanner.headline || '';
+  const primaryHeadline = primaryBanner?.headline || (enablePlaceholders ? defaultPrimaryBanner.headline : '') || '';
   const headlineWords = primaryHeadline.split(' ').filter(Boolean);
   const headlineSplitIndex = Math.max(1, Math.ceil(headlineWords.length / 2));
   const headlineLineOne = headlineWords.slice(0, headlineSplitIndex).join(' ');
@@ -139,41 +141,53 @@ export default function HomePage() {
       {/* Hero Section - Vlisco Inspired */}
       <section className="relative h-[90vh] min-h-[600px]">
         <div className="absolute inset-0">
-          <SafeImage
-            src={primaryBanner.imageUrl || defaultPrimaryBanner.imageUrl || ''}
-            alt={primaryBanner.headline || 'World Genius Collection'}
-            fill
-            className="object-cover"
-            priority
-          />
+          {primaryBanner?.imageUrl ? (
+            <SafeImage
+              src={primaryBanner.imageUrl}
+              alt={primaryBanner.headline || 'World Genius Collection'}
+              fill
+              className="object-cover"
+              priority
+            />
+          ) : (
+            <div className="absolute inset-0 bg-primary" />
+          )}
           <div className="absolute inset-0 bg-black/30" />
         </div>
 
         <div className="relative h-full flex items-end">
           <div className="container-full pb-16 lg:pb-24">
             <div className="max-w-2xl">
-              <p className="text-white/80 text-sm tracking-[0.3em] uppercase mb-4">
-                {primaryBanner.eyebrow || defaultPrimaryBanner.eyebrow}
-              </p>
-              <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl text-white font-medium tracking-tight leading-none mb-6">
-                {headlineLineOne}
-                {headlineLineTwo ? (
-                  <>
-                    <br />
-                    {headlineLineTwo}
-                  </>
-                ) : null}
-              </h1>
-              <p className="text-white/80 text-lg mb-8 max-w-md">
-                {primaryBanner.subheadline || defaultPrimaryBanner.subheadline}
-              </p>
-              <Link
-                href={primaryBanner.ctaLink || defaultPrimaryBanner.ctaLink || '/products'}
-                className="inline-flex items-center gap-3 bg-white text-primary px-8 py-4 text-sm font-medium tracking-wider uppercase hover:bg-white/90 transition-colors"
-              >
-                {primaryBanner.ctaText || defaultPrimaryBanner.ctaText || 'Shop Collection'}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+              {primaryBanner ? (
+                <>
+                  <p className="text-white/80 text-sm tracking-[0.3em] uppercase mb-4">
+                    {primaryBanner.eyebrow || defaultPrimaryBanner.eyebrow}
+                  </p>
+                  <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl text-white font-medium tracking-tight leading-none mb-6">
+                    {headlineLineOne}
+                    {headlineLineTwo ? (
+                      <>
+                        <br />
+                        {headlineLineTwo}
+                      </>
+                    ) : null}
+                  </h1>
+                  <p className="text-white/80 text-lg mb-8 max-w-md">
+                    {primaryBanner.subheadline || defaultPrimaryBanner.subheadline}
+                  </p>
+                  <Link
+                    href={primaryBanner.ctaLink || defaultPrimaryBanner.ctaLink || '/products'}
+                    className="inline-flex items-center gap-3 bg-white text-primary px-8 py-4 text-sm font-medium tracking-wider uppercase hover:bg-white/90 transition-colors"
+                  >
+                    {primaryBanner.ctaText || defaultPrimaryBanner.ctaText || 'Shop Collection'}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </>
+              ) : (
+                <div className="text-white/80 text-sm tracking-[0.3em] uppercase">
+                  Storefront loading
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -206,11 +220,11 @@ export default function HomePage() {
                 className="group relative aspect-[3/4] overflow-hidden img-zoom"
               >
                 <SafeImage
-                  src={category.imageUrl || '/placeholder-category.svg'}
+                  src={category.imageUrl || (enablePlaceholders ? '/placeholder-category.svg' : undefined)}
                   alt={category.name}
                   fill
                   className="object-cover"
-                  fallbackSrc="/placeholder-category.svg"
+                  fallbackSrc={enablePlaceholders ? '/placeholder-category.svg' : undefined}
                 />
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
                 <div className="absolute inset-0 flex flex-col justify-end p-6">
@@ -277,11 +291,11 @@ export default function HomePage() {
                   >
                     <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
                       <SafeImage
-                        src={getProductOriginalImageUrl(product) || '/placeholder.svg'}
+                        src={getProductOriginalImageUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
                         alt={product.name}
                         fill
                         className="object-cover"
-                        fallbackSrc="/placeholder.svg"
+                        fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
                       />
                       {product.compareAtPrice && !isOutOfStock && (
                         <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
@@ -342,8 +356,13 @@ export default function HomePage() {
       {/* Editorial Banner */}
       <section className="relative h-[70vh] min-h-[500px]">
         <div className="absolute inset-0">
-          <Image
-            src={secondaryBanner?.imageUrl || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1920&q=80'}
+          <SafeImage
+            src={
+              secondaryBanner?.imageUrl
+              || (enablePlaceholders
+                ? 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1920&q=80'
+                : undefined)
+            }
             alt="World Genius Lookbook"
             fill
             className="object-cover"
@@ -419,11 +438,12 @@ export default function HomePage() {
                   className="group"
                 >
                   <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
-                    <Image
-                      src={getProductOriginalImageUrl(product) || '/placeholder.svg'}
+                    <SafeImage
+                      src={getProductOriginalImageUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
                       alt={product.name}
                       fill
                       className="object-cover"
+                      fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
                     />
                     {!isOutOfStock && (
                       <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">

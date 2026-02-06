@@ -2,6 +2,7 @@
 
 import Image, { ImageProps } from 'next/image';
 import { useState, useEffect } from 'react';
+import { enablePlaceholders } from '@/lib/config';
 
 interface SafeImageProps extends Omit<ImageProps, 'onError'> {
   fallbackSrc?: string;
@@ -15,7 +16,7 @@ function isSvg(src: string | undefined | null): boolean {
 }
 
 export function SafeImage({ fallbackSrc, src, alt, unoptimized, ...props }: SafeImageProps) {
-  const fallback = fallbackSrc || DEFAULT_PLACEHOLDER;
+  const fallback = enablePlaceholders ? (fallbackSrc || DEFAULT_PLACEHOLDER) : undefined;
   const [imgSrc, setImgSrc] = useState(src || fallback);
   const [hasError, setHasError] = useState(false);
 
@@ -31,6 +32,10 @@ export function SafeImage({ fallbackSrc, src, alt, unoptimized, ...props }: Safe
       setImgSrc(fallback);
     }
   };
+
+  if (!imgSrc) {
+    return null;
+  }
 
   // SVGs should not go through Next.js image optimization
   const shouldSkipOptimization = unoptimized || isSvg(typeof imgSrc === 'string' ? imgSrc : undefined);

@@ -7,8 +7,9 @@ import { SafeImage } from '@/components/ui';
 import { Skeleton } from '@/components/ui';
 import { apiClient } from '@/lib/api/client';
 import { Product, Page, Category, Inventory } from '@/types';
-import { formatCurrency, getProductThumbnailUrl } from '@/lib/utils';
+import { formatCurrency, getProductMainImageUrl } from '@/lib/utils';
 import { ChevronRight, ChevronDown } from 'lucide-react';
+import { enablePlaceholders } from '@/lib/config';
 
 export default function CategoryPage() {
   const params = useParams();
@@ -274,11 +275,13 @@ export default function CategoryPage() {
                 >
                 <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4 bg-white">
                     <SafeImage
-                      src={getProductThumbnailUrl(product) || '/placeholder.svg'}
+                      src={getProductMainImageUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
                       alt={product.name}
                       fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      quality={85}
                       className="object-cover"
-                      fallbackSrc="/placeholder.svg"
+                      fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
                     />
                   {showNew && (
                     <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">

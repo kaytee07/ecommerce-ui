@@ -7,6 +7,7 @@ import { formatCurrency, getProductThumbnailUrl } from '@/lib/utils';
 import { ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/lib/stores';
 import { useState } from 'react';
+import { enablePlaceholders } from '@/lib/config';
 
 interface ProductCardProps {
   product: Product;
@@ -53,12 +54,12 @@ export function ProductCard({ product, showQuickAdd = true, inventory }: Product
         {/* Image Container */}
         <div className="relative aspect-product bg-gray-100 overflow-hidden">
           <SafeImage
-            src={getProductThumbnailUrl(product) || '/placeholder.svg'}
+            src={getProductThumbnailUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
             alt={product.name}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="object-cover group-hover:scale-105 transition-transform duration-300"
-            fallbackSrc="/placeholder.svg"
+            fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
           />
 
           {/* Badges */}
