@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import { SafeImage } from '@/components/ui';
 import Link from 'next/link';
@@ -29,11 +29,7 @@ export default function ProductDetailPage() {
 
   const { addItem } = useCartStore();
 
-  useEffect(() => {
-    fetchProduct();
-  }, [slug]);
-
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.get<{ status: boolean; data: Product; message: string }>(
@@ -71,7 +67,11 @@ export default function ProductDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [slug]);
+
+  useEffect(() => {
+    fetchProduct();
+  }, [fetchProduct]);
 
   const productOptions = useMemo<ProductOption[]>(() => {
     if (!product?.attributes) return [];
@@ -269,7 +269,6 @@ export default function ProductDetailPage() {
                   className="object-contain bg-gray-100"
                 />
               ) : null}
-              )}
               {product.compareAtPrice && (
                 <span className="absolute top-6 left-6 bg-primary text-white text-xs px-4 py-2 tracking-wider uppercase">
                   Sale
@@ -532,20 +531,25 @@ export default function ProductDetailPage() {
               You May Also Like
             </h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {relatedProducts.slice(0, 4).map((relatedProduct) => (
+              {relatedProducts.slice(0, 4).map((relatedProduct) => {
+                const mainImage = getProductThumbnailUrl(relatedProduct);
+                const imageSrc = mainImage || (enablePlaceholders ? '/placeholder.svg' : '');
+                return (
                 <Link
                   key={relatedProduct.id}
                   href={`/products/${relatedProduct.slug}`}
                   className="group"
                 >
                   <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
-                    <SafeImage
-                      src={getProductThumbnailUrl(relatedProduct) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
-                      alt={relatedProduct.name}
-                      fill
-                      className="object-cover"
-                      fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
-                    />
+                    {imageSrc ? (
+                      <SafeImage
+                        src={imageSrc}
+                        alt={relatedProduct.name}
+                        fill
+                        className="object-cover"
+                        fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
+                      />
+                    ) : null}
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-gray-500 tracking-wider uppercase">
@@ -559,7 +563,7 @@ export default function ProductDetailPage() {
                     </span>
                   </div>
                 </Link>
-              ))}
+              );})}
             </div>
           </div>
         </section>

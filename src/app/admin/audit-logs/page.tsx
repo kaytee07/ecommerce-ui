@@ -36,7 +36,7 @@ export default function AdminAuditLogsPage() {
   const { user } = useAuthStore();
   const permissions = useMemo(
     () => (user ? getPermissions(user.roles) : null),
-    [user?.roles?.join('|')]
+    [user]
   );
   const lastFetchKeyRef = useRef<string | null>(null);
 

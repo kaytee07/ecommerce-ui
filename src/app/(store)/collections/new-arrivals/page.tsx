@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/ui';
 import { Skeleton } from '@/components/ui';
@@ -17,11 +17,7 @@ export default function NewArrivalsPage() {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortDirection, setSortDirection] = useState('desc');
 
-  useEffect(() => {
-    fetchProducts();
-  }, [sortBy, sortDirection]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
       // Fetch newest products (sorted by createdAt desc)
@@ -93,7 +89,11 @@ export default function NewArrivalsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [sortBy, sortDirection]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const sortOptions = [
     { value: 'createdAt:desc', label: 'Newest' },
@@ -189,20 +189,25 @@ export default function NewArrivalsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {products.map((product) => (
+            {products.map((product) => {
+              const mainImage = getProductOriginalImageUrl(product);
+              const imageSrc = mainImage || (enablePlaceholders ? '/placeholder.svg' : '');
+              return (
               <Link
                 key={product.id}
                 href={`/products/${product.slug}`}
                 className="group"
               >
                 <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4 bg-white">
-                    <SafeImage
-                      src={getProductOriginalImageUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
-                      alt={product.name}
-                      fill
-                      className="object-cover"
-                      fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
-                    />
+                    {imageSrc ? (
+                      <SafeImage
+                        src={imageSrc}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                        fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
+                      />
+                    ) : null}
                   {/* New badge */}
                   <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
                     New
@@ -237,7 +242,7 @@ export default function NewArrivalsPage() {
                   </div>
                 </div>
               </Link>
-            ))}
+            );})}
           </div>
         )}
       </div>

@@ -35,7 +35,7 @@ export default function AccountLayout({
     if (!isLoading && !isAuthenticated) {
       router.push(`/login?redirect=${pathname}`);
     }
-  }, [isLoading, isAuthenticated, pathname]);
+  }, [isLoading, isAuthenticated, pathname, router]);
 
   if (isLoading) {
     return <FullPageSpinner />;

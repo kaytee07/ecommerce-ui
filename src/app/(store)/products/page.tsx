@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SafeImage } from '@/components/ui';
@@ -29,12 +29,7 @@ function ProductsContent() {
   const sortBy = searchParams.get('sortBy') || 'createdAt';
   const sortDirection = searchParams.get('sortDirection') || 'desc';
 
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, [searchParams]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
@@ -68,9 +63,9 @@ function ProductsContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [categoryId, minPrice, maxPrice, sortBy, sortDirection]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await apiClient.get<{ status: boolean; data: Category[]; message: string }>(
         '/store/categories'
@@ -80,7 +75,12 @@ function ProductsContent() {
       console.error('Failed to fetch categories', err);
       setCategories([]);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, [fetchProducts, fetchCategories]);
 
   const updateFilters = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -279,6 +279,8 @@ function ProductsContent() {
                   const availableQty = inventory?.availableQuantity ?? null;
                   const isOutOfStock = availableQty !== null && availableQty <= 0;
                   const isLowStock = availableQty !== null && availableQty > 0 && availableQty <= 5;
+                  const mainImage = getProductThumbnailUrl(product);
+                  const imageSrc = mainImage || (enablePlaceholders ? '/placeholder.svg' : '');
                   return (
                     <Link
                       key={product.id}
@@ -286,13 +288,15 @@ function ProductsContent() {
                       className="group"
                     >
                     <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
-                        <SafeImage
-                          src={getProductThumbnailUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
-                          alt={product.name}
-                          fill
-                          className="object-cover"
-                          fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
-                        />
+                        {imageSrc ? (
+                          <SafeImage
+                            src={imageSrc}
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                            fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
+                          />
+                        ) : null}
                       {showNew && !isOutOfStock && (
                         <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
                           New

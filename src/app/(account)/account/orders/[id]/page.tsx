@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -26,10 +26,66 @@ export default function OrderDetailPage() {
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [itemImages, setItemImages] = useState<Record<string, string>>({});
 
+  const fetchOrder = useCallback(async () => {
+    try {
+      const response = await apiClient.get<{ status: boolean; data: Order; message: string }>(
+        `/store/orders/${orderId}`
+      );
+      setOrder(response.data.data);
+    } catch (err) {
+      console.error('Failed to fetch order', err);
+      router.push('/account/orders');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [orderId, router]);
+
+  const fetchPayment = useCallback(async () => {
+    try {
+      const response = await apiClient.get<{ status: boolean; data: Payment[]; message: string }>(
+        `/store/payments/order/${orderId}`
+      );
+      const payments = response.data.data || [];
+      const latest = payments
+        .slice()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      setPayment(latest || null);
+    } catch (err) {
+      // Payment may not exist yet, that's okay
+      console.log('No payment found for order', err);
+    }
+  }, [orderId]);
+
+  const verifyPayment = useCallback(async () => {
+    if (!payment?.id || isVerifyingPayment) return;
+
+    setIsVerifyingPayment(true);
+    setPaymentError(null);
+
+    try {
+      const response = await apiClient.get<{ status: boolean; data: Payment; message: string }>(
+        `/store/payments/${payment.id}/verify`
+      );
+      setPayment(response.data.data);
+      setPaymentVerified(true);
+
+      // Refresh order to get updated status
+      if (response.data.data?.status === 'SUCCESS') {
+        await fetchOrder();
+      }
+    } catch (err: unknown) {
+      console.error('Failed to verify payment', err);
+      const error = err as { response?: { data?: { message?: string } } };
+      setPaymentError(error.response?.data?.message || 'Failed to verify payment status');
+    } finally {
+      setIsVerifyingPayment(false);
+    }
+  }, [payment?.id, isVerifyingPayment, fetchOrder]);
+
   useEffect(() => {
     fetchOrder();
     fetchPayment();
-  }, [orderId]);
+  }, [fetchOrder, fetchPayment]);
 
   useEffect(() => {
     if (!order?.items || order.items.length === 0) return;
@@ -83,63 +139,7 @@ export default function OrderDetailPage() {
     if (shouldVerify && payment?.status === 'PENDING') {
       verifyPayment();
     }
-  }, [payment, searchParams]);
-
-  const fetchOrder = async () => {
-    try {
-      const response = await apiClient.get<{ status: boolean; data: Order; message: string }>(
-        `/store/orders/${orderId}`
-      );
-      setOrder(response.data.data);
-    } catch (err) {
-      console.error('Failed to fetch order', err);
-      router.push('/account/orders');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchPayment = async () => {
-    try {
-      const response = await apiClient.get<{ status: boolean; data: Payment[]; message: string }>(
-        `/store/payments/order/${orderId}`
-      );
-      const payments = response.data.data || [];
-      const latest = payments
-        .slice()
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-      setPayment(latest || null);
-    } catch (err) {
-      // Payment may not exist yet, that's okay
-      console.log('No payment found for order', err);
-    }
-  };
-
-  const verifyPayment = async () => {
-    if (!payment?.id || isVerifyingPayment) return;
-
-    setIsVerifyingPayment(true);
-    setPaymentError(null);
-
-    try {
-      const response = await apiClient.get<{ status: boolean; data: Payment; message: string }>(
-        `/store/payments/${payment.id}/verify`
-      );
-      setPayment(response.data.data);
-      setPaymentVerified(true);
-
-      // Refresh order to get updated status
-      if (response.data.data?.status === 'SUCCESS') {
-        await fetchOrder();
-      }
-    } catch (err: unknown) {
-      console.error('Failed to verify payment', err);
-      const error = err as { response?: { data?: { message?: string } } };
-      setPaymentError(error.response?.data?.message || 'Failed to verify payment status');
-    } finally {
-      setIsVerifyingPayment(false);
-    }
-  };
+  }, [payment?.status, searchParams, verifyPayment]);
 
   const initiatePayment = async () => {
     try {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
@@ -16,21 +16,7 @@ function VerifyEmailContent() {
   const [message, setMessage] = useState('');
   const lastTokenRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!token) {
-      setStatus('no-token');
-      setMessage('No verification token provided.');
-      return;
-    }
-
-    if (lastTokenRef.current === token) {
-      return;
-    }
-    lastTokenRef.current = token;
-    verifyEmail(token);
-  }, [token]);
-
-  const verifyEmail = async (verificationToken: string) => {
+  const verifyEmail = useCallback(async (verificationToken: string) => {
     try {
       const response = await apiClient.get(`/auth/verify-email?token=${verificationToken}`);
       setStatus('success');
@@ -45,7 +31,21 @@ function VerifyEmailContent() {
       const error = err as { response?: { data?: { message?: string } } };
       setMessage(error.response?.data?.message || 'Failed to verify email. The link may have expired.');
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    if (!token) {
+      setStatus('no-token');
+      setMessage('No verification token provided.');
+      return;
+    }
+
+    if (lastTokenRef.current === token) {
+      return;
+    }
+    lastTokenRef.current = token;
+    verifyEmail(token);
+  }, [token, verifyEmail]);
 
   if (status === 'loading') {
     return (

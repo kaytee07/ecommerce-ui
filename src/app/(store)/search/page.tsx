@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ProductCard } from '@/components/products';
 import { ProductGridSkeleton, EmptySearchResults } from '@/components/ui';
@@ -19,17 +19,7 @@ function SearchContent() {
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (query) {
-      fetchProducts();
-    } else {
-      setProducts([]);
-      setInventoryMap(new Map());
-      setIsLoading(false);
-    }
-  }, [query]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.get<{ status: boolean; data: Product[]; message: string }>(
@@ -53,7 +43,17 @@ function SearchContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [query]);
+
+  useEffect(() => {
+    if (query) {
+      fetchProducts();
+    } else {
+      setProducts([]);
+      setInventoryMap(new Map());
+      setIsLoading(false);
+    }
+  }, [query, fetchProducts]);
 
   return (
     <div className="container-wide py-8">

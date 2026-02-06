@@ -53,7 +53,7 @@ export default function AdminOrderDetailPage() {
   const { user } = useAuthStore();
   const permissions = useMemo(
     () => (user ? getPermissions(user.roles) : null),
-    [user?.roles?.join('|')]
+    [user]
   );
   const lastFetchKeyRef = useRef<string | null>(null);
 

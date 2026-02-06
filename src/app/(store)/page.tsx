@@ -129,6 +129,10 @@ export default function HomePage() {
   const primaryBanner = activeBanners.find((banner) => banner.slot === 'PRIMARY')
     || (enablePlaceholders ? defaultPrimaryBanner : null);
   const secondaryBanner = activeBanners.find((banner) => banner.slot === 'SECONDARY');
+  const secondaryBannerSrc = secondaryBanner?.imageUrl
+    || (enablePlaceholders
+      ? 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1920&q=80'
+      : '');
 
   const primaryHeadline = primaryBanner?.headline || (enablePlaceholders ? defaultPrimaryBanner.headline : '') || '';
   const headlineWords = primaryHeadline.split(' ').filter(Boolean);
@@ -213,19 +217,23 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {activeCategories.map((category) => (
+            {activeCategories.map((category) => {
+              const imageSrc = category.imageUrl || (enablePlaceholders ? '/placeholder-category.svg' : '');
+              return (
               <Link
                 key={category.id}
                 href={`/categories/${category.slug}`}
                 className="group relative aspect-[3/4] overflow-hidden img-zoom"
               >
-                <SafeImage
-                  src={category.imageUrl || (enablePlaceholders ? '/placeholder-category.svg' : undefined)}
-                  alt={category.name}
-                  fill
-                  className="object-cover"
-                  fallbackSrc={enablePlaceholders ? '/placeholder-category.svg' : undefined}
-                />
+                {imageSrc ? (
+                  <SafeImage
+                    src={imageSrc}
+                    alt={category.name}
+                    fill
+                    className="object-cover"
+                    fallbackSrc={enablePlaceholders ? '/placeholder-category.svg' : undefined}
+                  />
+                ) : null}
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
                 <div className="absolute inset-0 flex flex-col justify-end p-6">
                   <h3 className="font-heading text-2xl text-white mb-1">{category.name}</h3>
@@ -234,7 +242,7 @@ export default function HomePage() {
                   </p>
                 </div>
               </Link>
-            ))}
+            );})}
           </div>
         )}
       </section>
@@ -283,6 +291,8 @@ export default function HomePage() {
                 const availableQty = inventory?.availableQuantity ?? null;
                 const isOutOfStock = availableQty !== null && availableQty <= 0;
                 const isLowStock = availableQty !== null && availableQty > 0 && availableQty <= 5;
+                const mainImage = getProductOriginalImageUrl(product);
+                const imageSrc = mainImage || (enablePlaceholders ? '/placeholder.svg' : '');
                 return (
                   <Link
                     key={product.id}
@@ -290,13 +300,15 @@ export default function HomePage() {
                     className="group"
                   >
                     <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
-                      <SafeImage
-                        src={getProductOriginalImageUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                        fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
-                      />
+                      {imageSrc ? (
+                        <SafeImage
+                          src={imageSrc}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                          fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
+                        />
+                      ) : null}
                       {product.compareAtPrice && !isOutOfStock && (
                         <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
                           Sale
@@ -356,17 +368,14 @@ export default function HomePage() {
       {/* Editorial Banner */}
       <section className="relative h-[70vh] min-h-[500px]">
         <div className="absolute inset-0">
-          <SafeImage
-            src={
-              secondaryBanner?.imageUrl
-              || (enablePlaceholders
-                ? 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1920&q=80'
-                : undefined)
-            }
-            alt="World Genius Lookbook"
-            fill
-            className="object-cover"
-          />
+          {secondaryBannerSrc ? (
+            <SafeImage
+              src={secondaryBannerSrc}
+              alt="World Genius Lookbook"
+              fill
+              className="object-cover"
+            />
+          ) : null}
           <div className="absolute inset-0 bg-black/40" />
         </div>
 
@@ -431,6 +440,8 @@ export default function HomePage() {
               const availableQty = inventory?.availableQuantity ?? null;
               const isOutOfStock = availableQty !== null && availableQty <= 0;
               const isLowStock = availableQty !== null && availableQty > 0 && availableQty <= 5;
+              const mainImage = getProductOriginalImageUrl(product);
+              const imageSrc = mainImage || (enablePlaceholders ? '/placeholder.svg' : '');
               return (
                 <Link
                   key={product.id}
@@ -438,13 +449,15 @@ export default function HomePage() {
                   className="group"
                 >
                   <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4">
-                    <SafeImage
-                      src={getProductOriginalImageUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
-                      alt={product.name}
-                      fill
-                      className="object-cover"
-                      fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
-                    />
+                    {imageSrc ? (
+                      <SafeImage
+                        src={imageSrc}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                        fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
+                      />
+                    ) : null}
                     {!isOutOfStock && (
                       <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
                         New

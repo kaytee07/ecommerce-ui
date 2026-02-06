@@ -38,7 +38,7 @@ export default function CheckoutPage() {
   const createAccount = watch('createAccount');
   useEffect(() => {
     fetchCart();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchCart]);
 
   useEffect(() => {
     if (!cart?.items || cart.items.length === 0) return;

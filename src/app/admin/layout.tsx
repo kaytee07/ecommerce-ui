@@ -84,7 +84,7 @@ export default function AdminLayout({
         router.push('/');
       }
     }
-  }, [isLoading, isAuthenticated, user]);
+  }, [isLoading, isAuthenticated, user, router]);
 
   if (isLoading) {
     return <FullPageSpinner />;

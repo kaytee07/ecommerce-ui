@@ -48,19 +48,24 @@ export function ProductCard({ product, showQuickAdd = true, inventory }: Product
   const isOutOfStock = availableQty !== null ? availableQty <= 0 : false;
   const isLowStock = availableQty !== null && availableQty > 0 && availableQty <= 5;
 
+  const mainImage = getProductThumbnailUrl(product);
+  const imageSrc = mainImage || (enablePlaceholders ? '/placeholder.svg' : '');
+
   return (
     <Link href={`/products/${product.slug}`} className="group block">
       <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200">
         {/* Image Container */}
         <div className="relative aspect-product bg-gray-100 overflow-hidden">
-          <SafeImage
-            src={getProductThumbnailUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
-            alt={product.name}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-            fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
-          />
+          {imageSrc ? (
+            <SafeImage
+              src={imageSrc}
+              alt={product.name}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
+            />
+          ) : null}
 
           {/* Badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1">

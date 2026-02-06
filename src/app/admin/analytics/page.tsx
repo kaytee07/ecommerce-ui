@@ -83,7 +83,7 @@ export default function AdminAnalyticsPage() {
   const { user } = useAuthStore();
   const permissions = useMemo(
     () => (user ? getPermissions(user.roles) : null),
-    [user?.roles?.join('|')]
+    [user]
   );
   const lastFetchKeyRef = useRef<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardMetrics | null>(null);
@@ -94,6 +94,16 @@ export default function AdminAnalyticsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState('7d');
+
+  const getDateRange = useCallback(() => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - (dateRange === '7d' ? 7 : 30));
+    return {
+      from: from.toISOString().split('T')[0],
+      to: to.toISOString().split('T')[0],
+    };
+  }, [dateRange]);
 
   const fetchAnalytics = useCallback(async () => {
     setIsLoading(true);
@@ -135,7 +145,7 @@ export default function AdminAnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [dateRange]);
+  }, [getDateRange]);
 
   useEffect(() => {
     if (!user) return;
@@ -148,17 +158,6 @@ export default function AdminAnalyticsPage() {
     lastFetchKeyRef.current = key;
     fetchAnalytics();
   }, [dateRange, user, permissions?.canViewAnalytics, router, fetchAnalytics]);
-
-  // Calculate date range for API
-  const getDateRange = () => {
-    const to = new Date();
-    const from = new Date();
-    from.setDate(to.getDate() - (dateRange === '7d' ? 7 : 30));
-    return {
-      from: from.toISOString().split('T')[0],
-      to: to.toISOString().split('T')[0],
-    };
-  };
 
 
   if (user && !permissions?.canViewAnalytics) {

@@ -50,7 +50,7 @@ export default function AdminCustomersPage() {
   const { user } = useAuthStore();
   const permissions = useMemo(
     () => (user ? getPermissions(user.roles) : null),
-    [user?.roles?.join('|')]
+    [user]
   );
   const lastFetchKeyRef = useRef<string | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);

@@ -21,7 +21,7 @@ export default function CartPage() {
 
   useEffect(() => {
     fetchCart();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchCart]);
 
   useEffect(() => {
     if (!cart?.items || cart.items.length === 0) return;

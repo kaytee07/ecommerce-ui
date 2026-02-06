@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { SafeImage } from '@/components/ui';
@@ -22,11 +22,7 @@ export default function CategoryPage() {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortDirection, setSortDirection] = useState('desc');
 
-  useEffect(() => {
-    fetchData();
-  }, [slug, sortBy, sortDirection]);
-
-  const sortProducts = (list: Product[]) => {
+  const sortProducts = useCallback((list: Product[]) => {
     const sorted = [...list];
     sorted.sort((a, b) => {
       if (sortBy === 'price') {
@@ -41,9 +37,9 @@ export default function CategoryPage() {
     });
     if (sortDirection === 'desc') sorted.reverse();
     return sorted;
-  };
+  }, [sortBy, sortDirection]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       // First try to fetch category from API
@@ -151,7 +147,11 @@ export default function CategoryPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [slug, sortBy, sortDirection, sortProducts]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const sortOptions = [
     { value: 'createdAt:desc', label: 'Newest' },
@@ -267,6 +267,8 @@ export default function CategoryPage() {
             {products.map((product) => {
               const showNew = product.tags?.includes('new');
               const showSale = Boolean(product.compareAtPrice);
+              const mainImage = getProductMainImageUrl(product);
+              const imageSrc = mainImage || (enablePlaceholders ? '/placeholder.svg' : '');
               return (
                 <Link
                   key={product.id}
@@ -274,15 +276,17 @@ export default function CategoryPage() {
                   className="group"
                 >
                 <div className="relative aspect-[3/4] overflow-hidden img-zoom mb-4 bg-white">
-                    <SafeImage
-                      src={getProductMainImageUrl(product) || (enablePlaceholders ? '/placeholder.svg' : undefined)}
-                      alt={product.name}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                      quality={85}
-                      className="object-cover"
-                      fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
-                    />
+                    {imageSrc ? (
+                      <SafeImage
+                        src={imageSrc}
+                        alt={product.name}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        quality={85}
+                        className="object-cover"
+                        fallbackSrc={enablePlaceholders ? '/placeholder.svg' : undefined}
+                      />
+                    ) : null}
                   {showNew && (
                     <span className="absolute top-4 left-4 bg-primary text-white text-xs px-3 py-1 tracking-wider uppercase">
                       New
