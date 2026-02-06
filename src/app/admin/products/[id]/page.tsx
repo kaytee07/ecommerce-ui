@@ -34,10 +34,9 @@ export default function EditProductPage() {
   const searchParams = useSearchParams();
   const productId = params.id as string;
   const { user } = useAuthStore();
-  const rolesKey = user?.roles?.join('|') ?? '';
   const permissions = useMemo(
     () => (user ? getPermissions(user.roles) : null),
-    [user, rolesKey]
+    [user]
   );
   const lastFetchKeyRef = useRef<string | null>(null);
 

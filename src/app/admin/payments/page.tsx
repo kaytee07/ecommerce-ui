@@ -45,10 +45,9 @@ const statusConfig = {
 export default function AdminPaymentsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const rolesKey = user?.roles?.join('|') ?? '';
   const permissions = useMemo(
     () => (user ? getPermissions(user.roles) : null),
-    [user, rolesKey]
+    [user]
   );
   const lastFetchKeyRef = useRef<string | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);

@@ -31,10 +31,9 @@ type ProductFormData = z.input<typeof productSchema>;
 export default function NewProductPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const rolesKey = user?.roles?.join('|') ?? '';
   const permissions = useMemo(
     () => (user ? getPermissions(user.roles) : null),
-    [user, rolesKey]
+    [user]
   );
   const lastFetchKeyRef = useRef<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);

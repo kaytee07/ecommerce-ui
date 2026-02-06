@@ -20,10 +20,9 @@ import { getPermissions } from '@/lib/auth/permissions';
 
 export default function AdminDashboardPage() {
   const { user } = useAuthStore();
-  const rolesKey = user?.roles?.join('|') ?? '';
   const permissions = useMemo(
     () => (user ? getPermissions(user.roles) : null),
-    [user, rolesKey]
+    [user]
   );
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [recentOrders, setRecentOrders] = useState<OrderHistory[]>([]);
