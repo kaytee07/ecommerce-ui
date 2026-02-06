@@ -7,7 +7,7 @@ import { SafeImage } from '@/components/ui';
 import { Skeleton } from '@/components/ui';
 import { apiClient } from '@/lib/api/client';
 import { Product, Category, Inventory } from '@/types';
-import { formatCurrency, cn, getProductThumbnailUrl, fetchBatchInventory } from '@/lib/utils';
+import { formatCurrency, cn, getProductMainImageUrl, fetchBatchInventory } from '@/lib/utils';
 import { SlidersHorizontal, X, ChevronDown } from 'lucide-react';
 import { enablePlaceholders } from '@/lib/config';
 
@@ -279,7 +279,7 @@ function ProductsContent() {
                   const availableQty = inventory?.availableQuantity ?? null;
                   const isOutOfStock = availableQty !== null && availableQty <= 0;
                   const isLowStock = availableQty !== null && availableQty > 0 && availableQty <= 5;
-                  const mainImage = getProductThumbnailUrl(product);
+                  const mainImage = getProductMainImageUrl(product);
                   const imageSrc = mainImage || (enablePlaceholders ? '/placeholder.svg' : '');
                   return (
                     <Link
