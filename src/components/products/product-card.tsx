@@ -3,7 +3,7 @@
 import { SafeImage } from '@/components/ui';
 import Link from 'next/link';
 import { Product, Inventory } from '@/types';
-import { formatCurrency, getProductThumbnailUrl } from '@/lib/utils';
+import { formatCurrency, getProductOriginalImageUrl } from '@/lib/utils';
 import { ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/lib/stores';
 import { useState } from 'react';
@@ -48,7 +48,7 @@ export function ProductCard({ product, showQuickAdd = true, inventory }: Product
   const isOutOfStock = availableQty !== null ? availableQty <= 0 : false;
   const isLowStock = availableQty !== null && availableQty > 0 && availableQty <= 5;
 
-  const mainImage = getProductThumbnailUrl(product);
+  const mainImage = getProductOriginalImageUrl(product);
   const imageSrc = mainImage || (enablePlaceholders ? '/placeholder.svg' : '');
 
   return (
