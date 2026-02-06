@@ -1,5 +1,13 @@
 import { Product } from '@/types';
 
+function upgradeThumbToOriginal(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.includes('-thumb.')) {
+    return url.replace('-thumb.', '-original.');
+  }
+  return url;
+}
+
 export function getProductImageMap(product: Product): Record<string, string> | null {
   const attributes = product.attributes as Record<string, unknown> | undefined;
   const images = attributes?.images;
@@ -32,9 +40,15 @@ export function getProductThumbnailUrl(product: Product): string | null {
 export function getProductMainImageUrl(product: Product): string | null {
   const map = getProductImageMap(product);
   if (map) {
-    return map.medium || map.original || map.large || map.thumbnail || null;
+    return map.large || map.original || map.medium || map.thumbnail || null;
   }
-  return product.imageUrl || product.images?.[0]?.url || null;
+  return (
+    upgradeThumbToOriginal(product.imageUrl)
+    || upgradeThumbToOriginal(product.images?.[0]?.url)
+    || product.imageUrl
+    || product.images?.[0]?.url
+    || null
+  );
 }
 
 export function getProductOriginalImageUrl(product: Product): string | null {
@@ -42,5 +56,11 @@ export function getProductOriginalImageUrl(product: Product): string | null {
   if (map) {
     return map.original || map.large || map.medium || map.thumbnail || null;
   }
-  return product.imageUrl || product.images?.[0]?.url || null;
+  return (
+    upgradeThumbToOriginal(product.imageUrl)
+    || upgradeThumbToOriginal(product.images?.[0]?.url)
+    || product.imageUrl
+    || product.images?.[0]?.url
+    || null
+  );
 }
