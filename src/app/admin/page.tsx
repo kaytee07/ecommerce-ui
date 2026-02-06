@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
 import { DashboardData, OrderHistory } from '@/types';
@@ -20,16 +20,16 @@ import { getPermissions } from '@/lib/auth/permissions';
 
 export default function AdminDashboardPage() {
   const { user } = useAuthStore();
-  const permissions = user ? getPermissions(user.roles) : null;
+  const rolesKey = user?.roles?.join('|') ?? '';
+  const permissions = useMemo(
+    () => (user ? getPermissions(user.roles) : null),
+    [user, rolesKey]
+  );
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [recentOrders, setRecentOrders] = useState<OrderHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const requests: Array<Promise<unknown>> = [];
       const shouldFetchAnalytics = !!permissions?.canViewAnalytics;
@@ -73,7 +73,11 @@ export default function AdminDashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [permissions?.canViewAnalytics, permissions?.canViewAllOrders]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (isLoading) {
     return (

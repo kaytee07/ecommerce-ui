@@ -15,9 +15,10 @@ import { getPermissions } from '@/lib/auth/permissions';
 export default function AdminProductsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const rolesKey = user?.roles?.join('|') ?? '';
   const permissions = useMemo(
     () => (user ? getPermissions(user.roles) : null),
-    [user?.roles?.join('|')]
+    [user, rolesKey]
   );
   const lastFetchKeyRef = useRef<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
