@@ -7,7 +7,7 @@ import { SafeImage } from '@/components/ui';
 import { Skeleton } from '@/components/ui';
 import { apiClient } from '@/lib/api/client';
 import { Product, Page, Category, Inventory } from '@/types';
-import { formatCurrency, getProductMainImageUrl } from '@/lib/utils';
+import { formatCurrency, getProductOriginalImageUrl } from '@/lib/utils';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { enablePlaceholders } from '@/lib/config';
 
@@ -267,7 +267,7 @@ export default function CategoryPage() {
             {products.map((product) => {
               const showNew = product.tags?.includes('new');
               const showSale = Boolean(product.compareAtPrice);
-              const mainImage = getProductMainImageUrl(product);
+              const mainImage = getProductOriginalImageUrl(product);
               const imageSrc = mainImage || (enablePlaceholders ? '/placeholder.svg' : '');
               return (
                 <Link

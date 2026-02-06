@@ -518,7 +518,7 @@ export default function HomePage() {
                 Made for the World
               </h2>
               <p className="text-white/70 text-lg leading-relaxed mb-8 max-w-md">
-                World Genius is more than a brand. It&apos;s a movement for those who dare to be different.
+                World Genius is more than a brand. It&apos;s a community for those who dare to be different.
                 Our pieces are designed for the bold, the creative, the nonconformists.
               </p>
               <Link
@@ -556,7 +556,7 @@ export default function HomePage() {
             </a>
           </div>
           <h2 className="font-heading text-4xl md:text-5xl font-medium tracking-tight">
-            Follow Our Journey
+            Be A G3nius
           </h2>
         </div>
 
