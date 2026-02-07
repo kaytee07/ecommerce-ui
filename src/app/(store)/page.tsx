@@ -141,7 +141,7 @@ export default function HomePage() {
   const headlineLineTwo = headlineWords.slice(headlineSplitIndex).join(' ');
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen bg-cream overflow-x-hidden">
       {/* Hero Section - Vlisco Inspired */}
       <section className="relative h-[90vh] min-h-[600px]">
         <div className="absolute inset-0">
@@ -544,7 +544,7 @@ export default function HomePage() {
       {/* Social Feed Placeholder */}
       <section className="container-full py-20 lg:py-32">
         <div className="text-center mb-12">
-          <div className="text-xs tracking-[0.3em] uppercase text-gray-500 mb-3 flex items-center justify-center gap-4">
+          <div className="text-xs tracking-[0.3em] uppercase text-gray-500 mb-3 flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-center">
             <a href="https://instagram.com/worldg3nius" target="_blank" rel="noopener noreferrer">
               @worldg3nius
             </a>
