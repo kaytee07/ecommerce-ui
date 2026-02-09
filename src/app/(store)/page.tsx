@@ -382,12 +382,10 @@ export default function HomePage() {
         <div className="relative h-full flex items-center justify-center text-center">
           <div className="max-w-2xl px-6">
             <p className="text-white/80 text-sm tracking-[0.3em] uppercase mb-4">
-              The Lookbook
+              The 5th Anniversary
             </p>
             <h2 className="font-heading text-4xl md:text-6xl text-white font-medium tracking-tight mb-6">
-              Street Style
-              <br />
-              Elevated
+              The New World
             </h2>
             <Link
               href="/collections/new-arrivals"
@@ -531,7 +529,7 @@ export default function HomePage() {
             </div>
             <div className="relative aspect-square lg:aspect-[4/3]">
               <Image
-                src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&q=80"
+                src="/born_in_ghana.JPG"
                 alt="World Genius Brand"
                 fill
                 className="object-cover"
@@ -562,10 +560,10 @@ export default function HomePage() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=400&q=80',
-            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80',
-            'https://images.unsplash.com/photo-1534030347209-467a5b0ad3e6?w=400&q=80',
-            'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=400&q=80',
+            '/be_a_genius1.JPG',
+            '/be_a_genius2.JPG',
+            '/be_a_genius3.JPG',
+            '/be_a_genius4.HEIC',
           ].map((src, i) => (
             <a
               key={i}

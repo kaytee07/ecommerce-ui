@@ -9,7 +9,7 @@ export default function AboutPage() {
       <section className="relative h-[60vh] min-h-[400px]">
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=80"
+            src="/about_us.JPG"
             alt="World Genius Brand"
             fill
             className="object-cover"
@@ -33,25 +33,12 @@ export default function AboutPage() {
       <section className="container-full py-20 lg:py-32">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div>
-            <p className="text-xs tracking-[0.3em] uppercase text-gray-500 mb-4">The Beginning</p>
-            <h2 className="font-heading text-4xl font-medium tracking-tight mb-6">
-              Defying the Ordinary
-            </h2>
             <div className="space-y-4 text-gray-600 leading-relaxed">
               <p>
-                World Genius was born from a simple belief: fashion should be a statement, not a uniform.
-                Founded in Accra, Ghana, we set out to create clothing that speaks to the bold, the creative,
-                and those who refuse to blend in.
-              </p>
-              <p>
-                Our journey began in a small studio with big dreams. Today, we&apos;ve grown into a brand
-                that represents more than just clothing—we represent a movement. A movement of self-expression,
-                cultural pride, and unapologetic individuality.
-              </p>
-              <p>
-                Every piece we create is a testament to our roots and our vision. We blend contemporary
-                streetwear aesthetics with influences from our rich Ghanaian heritage, creating designs
-                that are both globally relevant and culturally meaningful.
+                WORLDG3NIUS (often stylized as World Genius) is a Ghanian apparel brand redefining African fashion and culture.
+                Known for its distinctive s designs and compelling storytelling, the brand has built a strong community presence through pop-ups and high-profile collections.
+                Established in 2021, WORLDG3NIUS was birthed by three young Ghanaians with a dream of placing African fashion on the global map through telling stories and its culture to the world on fabric,
+                create a global community full of youthful, creative and highly motivated people with new opportunities in fashion, arts and entrepreneurship as well as highlighting their stories and telling them to the world.
               </p>
             </div>
           </div>
