@@ -94,15 +94,8 @@ export function Header() {
     router.push('/');
   };
 
-  return (
+    return (
     <header className="sticky top-0 z-50 bg-cream">
-      {/* Top Bar - Announcement */}
-      <div className="bg-primary text-white text-center py-2 px-4">
-        <p className="text-xs tracking-widest uppercase">
-          Free shipping on orders over GHS 500
-        </p>
-      </div>
-
       {/* Main Header */}
       <nav className="border-b border-gray-200">
         <div className="container-full">
