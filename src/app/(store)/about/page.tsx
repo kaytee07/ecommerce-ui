@@ -44,7 +44,7 @@ export default function AboutPage() {
           </div>
           <div className="relative aspect-square">
             <Image
-              src="https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80"
+              src="/about_us.JPG"
               alt="World Genius Studio"
               fill
               className="object-cover"
