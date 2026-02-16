@@ -21,123 +21,75 @@ export default function ShippingPage() {
             Shipping Information
           </h1>
           <p className="text-center text-gray-500 mt-3">
-            Everything you need to know about our shipping options
+            Shipping rates and delivery timelines
           </p>
         </div>
       </div>
 
       <div className="container-narrow py-12 lg:py-20">
-        {/* Shipping Options */}
-        <div className="grid md:grid-cols-2 gap-8 mb-16">
-          <div className="bg-white p-8">
-            <div className="w-12 h-12 bg-primary text-white flex items-center justify-center mb-6">
+        {/* Shipping Rates */}
+        <div className="bg-white p-8 mb-12">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-primary text-white flex items-center justify-center">
               <Truck className="h-6 w-6" />
             </div>
+            <h2 className="font-heading text-2xl">Shipping Rates</h2>
+          </div>
+          <p className="text-gray-600 leading-relaxed">
+            Shipping rates differ based on location, weight and value of order and as such,
+            customer will be contacted accordingly for the shipping rate.
+          </p>
+        </div>
+
+        {/* Shipping Timelines */}
+        <div className="grid md:grid-cols-2 gap-8 mb-12">
+          <div className="bg-white p-8">
+            <div className="w-12 h-12 bg-primary text-white flex items-center justify-center mb-6">
+              <Clock className="h-6 w-6" />
+            </div>
             <h2 className="font-heading text-2xl mb-4">Domestic Shipping</h2>
-            <p className="text-gray-600 mb-4">Within Ghana</p>
-            <ul className="space-y-3 text-gray-600">
-              <li className="flex justify-between">
-                <span>Standard Delivery</span>
-                <span className="font-medium">2-5 business days</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Express Delivery</span>
-                <span className="font-medium">1-2 business days</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Same Day (Accra only)</span>
-                <span className="font-medium">Same day</span>
-              </li>
-            </ul>
+            <p className="text-gray-600 leading-relaxed">
+              1-2 business days for package to arrive after order is fully processed.
+            </p>
           </div>
 
           <div className="bg-white p-8">
             <div className="w-12 h-12 bg-primary text-white flex items-center justify-center mb-6">
               <Globe className="h-6 w-6" />
             </div>
-            <h2 className="font-heading text-2xl mb-4">International Shipping</h2>
-            <p className="text-gray-600 mb-4">Worldwide delivery</p>
-            <ul className="space-y-3 text-gray-600">
-              <li className="flex justify-between">
-                <span>West Africa</span>
-                <span className="font-medium">5-7 business days</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Rest of Africa</span>
-                <span className="font-medium">7-10 business days</span>
-              </li>
-              <li className="flex justify-between">
-                <span>International</span>
-                <span className="font-medium">10-14 business days</span>
-              </li>
-            </ul>
+            <h2 className="font-heading text-2xl mb-4">Rest of Africa</h2>
+            <p className="text-gray-600 leading-relaxed">
+              5 - 8 business days to arrive after order is fully processed. (Delays and customs
+              procedures are different in every country and might affect the arrival date of package)
+            </p>
           </div>
         </div>
 
-        {/* Shipping Rates */}
-        <div className="mb-16">
-          <h2 className="font-heading text-2xl mb-8 text-center">Shipping Rates</h2>
-          <div className="bg-white overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Destination</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Standard</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Express</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                <tr>
-                  <td className="px-6 py-4">Greater Accra</td>
-                  <td className="px-6 py-4">GHS 25</td>
-                  <td className="px-6 py-4">GHS 45</td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4">Other Regions (Ghana)</td>
-                  <td className="px-6 py-4">GHS 35</td>
-                  <td className="px-6 py-4">GHS 60</td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4">West Africa</td>
-                  <td className="px-6 py-4">GHS 150</td>
-                  <td className="px-6 py-4">GHS 250</td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4">International</td>
-                  <td className="px-6 py-4">GHS 300+</td>
-                  <td className="px-6 py-4">GHS 500+</td>
-                </tr>
-              </tbody>
-            </table>
+        <div className="bg-white p-8 mb-16">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-primary text-white flex items-center justify-center">
+              <Package className="h-6 w-6" />
+            </div>
+            <h2 className="font-heading text-2xl">International</h2>
           </div>
-          <p className="text-center text-gray-500 text-sm mt-4">
-            Free shipping on orders over GHS 500 (domestic) or GHS 1,500 (international)
+          <p className="text-gray-600 leading-relaxed">
+            7 to 10 business days to arrive after order is fully processed (Delays, customs
+            procedures and shipping company policies are different in every country and can affect
+            the arrival date of package)
           </p>
         </div>
 
-        {/* Additional Info */}
-        <div className="grid md:grid-cols-2 gap-8 mb-16">
-          <div className="bg-white p-8">
-            <div className="w-12 h-12 bg-primary text-white flex items-center justify-center mb-6">
+        <div className="bg-white p-8 mb-16">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-primary text-white flex items-center justify-center">
               <Clock className="h-6 w-6" />
             </div>
-            <h3 className="font-heading text-xl mb-4">Processing Time</h3>
-            <p className="text-gray-600">
-              Orders are processed within 1-2 business days. Orders placed after 2pm GMT
-              or on weekends will be processed the next business day.
-            </p>
+            <h2 className="font-heading text-2xl">Processing Time</h2>
           </div>
-
-          <div className="bg-white p-8">
-            <div className="w-12 h-12 bg-primary text-white flex items-center justify-center mb-6">
-              <Package className="h-6 w-6" />
-            </div>
-            <h3 className="font-heading text-xl mb-4">Order Tracking</h3>
-            <p className="text-gray-600">
-              Once your order ships, you&apos;ll receive a confirmation email with tracking
-              information. You can also track your order in your account dashboard.
-            </p>
-          </div>
+          <p className="text-gray-600 leading-relaxed">
+            Processing of t-shirt and trucker cap orders take between 2 to 5 business days to
+            process and jerseys, sweat short orders takes 5 to 8 business days to process.
+          </p>
         </div>
 
         {/* Contact CTA */}

@@ -747,6 +747,7 @@ input:where([type='file']):focus {
 
   html {
   scroll-behavior: smooth;
+    overflow-x: hidden;
 }
 
   body {
@@ -756,6 +757,7 @@ input:where([type='file']):focus {
     background-color: rgb(var(--color-cream));
     color: var(--color-text-primary);
     font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
 }
 
   h1, h2, h3, h4, h5, h6 {
@@ -1570,6 +1572,9 @@ input:where([type='file']):focus {
 }
 .overflow-y-auto {
   overflow-y: auto;
+}
+.overflow-x-hidden {
+  overflow-x: hidden;
 }
 .truncate {
   overflow: hidden;
@@ -2706,6 +2711,10 @@ input:where([type='file']):focus {
 
   .sm\:justify-between {
     justify-content: space-between;
+  }
+
+  .sm\:gap-4 {
+    gap: 1rem;
   }
 
   .sm\:p-6 {
