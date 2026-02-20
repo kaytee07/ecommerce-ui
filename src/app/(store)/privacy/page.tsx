@@ -141,8 +141,8 @@ export default function PrivacyPage() {
               If you have questions about this Privacy Policy, please contact us at:
             </p>
             <div className="mt-4 text-gray-600">
-              <p>Email: privacy@worldg3nius.com</p>
-              <p>Address: 123 Independence Avenue, Accra, Ghana</p>
+              <p>Email: worldgeniussbrand@gmail.com</p>
+              <p>Phone: +233 20 023 9676</p>
             </div>
           </section>
         </div>

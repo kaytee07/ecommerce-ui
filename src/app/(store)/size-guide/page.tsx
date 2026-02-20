@@ -65,124 +65,88 @@ export default function SizeGuidePage() {
           </div>
         </div>
 
-        {/* Tops Size Chart */}
+        {/* Women's International Size Conversion Chart */}
         <div className="mb-12">
-          <h2 className="font-heading text-2xl mb-6">Tops & Outerwear</h2>
+          <h2 className="font-heading text-2xl mb-2">Women&apos;s International Size Conversion Chart</h2>
+          <p className="text-sm text-gray-600 mb-6">
+            This table provides a general conversion across the most common international sizing systems.
+          </p>
           <div className="bg-white overflow-x-auto">
-            <table className="w-full min-w-[600px]">
+            <table className="w-full min-w-[720px]">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Size</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Chest (cm)</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Chest (in)</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Length (cm)</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Sleeve (cm)</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Alpha</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">US</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">UK / AU</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">EU</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">IT</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">FR</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">JP</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 <tr>
+                  <td className="px-6 py-4 font-medium">XXS</td>
+                  <td className="px-6 py-4">0</td>
+                  <td className="px-6 py-4">4</td>
+                  <td className="px-6 py-4">32</td>
+                  <td className="px-6 py-4">36</td>
+                  <td className="px-6 py-4">32</td>
+                  <td className="px-6 py-4">3</td>
+                </tr>
+                <tr>
                   <td className="px-6 py-4 font-medium">XS</td>
-                  <td className="px-6 py-4">86-91</td>
-                  <td className="px-6 py-4">34-36</td>
-                  <td className="px-6 py-4">66</td>
-                  <td className="px-6 py-4">61</td>
+                  <td className="px-6 py-4">2</td>
+                  <td className="px-6 py-4">6</td>
+                  <td className="px-6 py-4">34</td>
+                  <td className="px-6 py-4">38</td>
+                  <td className="px-6 py-4">34</td>
+                  <td className="px-6 py-4">5</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium">S</td>
-                  <td className="px-6 py-4">91-96</td>
+                  <td className="px-6 py-4">4-6</td>
+                  <td className="px-6 py-4">8-10</td>
                   <td className="px-6 py-4">36-38</td>
-                  <td className="px-6 py-4">69</td>
-                  <td className="px-6 py-4">63</td>
+                  <td className="px-6 py-4">40-42</td>
+                  <td className="px-6 py-4">36-38</td>
+                  <td className="px-6 py-4">7-9</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium">M</td>
-                  <td className="px-6 py-4">96-101</td>
-                  <td className="px-6 py-4">38-40</td>
-                  <td className="px-6 py-4">72</td>
-                  <td className="px-6 py-4">65</td>
+                  <td className="px-6 py-4">8-10</td>
+                  <td className="px-6 py-4">12-14</td>
+                  <td className="px-6 py-4">40-42</td>
+                  <td className="px-6 py-4">44-46</td>
+                  <td className="px-6 py-4">40-42</td>
+                  <td className="px-6 py-4">11-13</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium">L</td>
-                  <td className="px-6 py-4">101-106</td>
-                  <td className="px-6 py-4">40-42</td>
-                  <td className="px-6 py-4">75</td>
-                  <td className="px-6 py-4">67</td>
+                  <td className="px-6 py-4">12-14</td>
+                  <td className="px-6 py-4">16-18</td>
+                  <td className="px-6 py-4">44-46</td>
+                  <td className="px-6 py-4">48-50</td>
+                  <td className="px-6 py-4">44-46</td>
+                  <td className="px-6 py-4">15-17</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium">XL</td>
-                  <td className="px-6 py-4">106-111</td>
-                  <td className="px-6 py-4">42-44</td>
-                  <td className="px-6 py-4">78</td>
-                  <td className="px-6 py-4">69</td>
+                  <td className="px-6 py-4">16-18</td>
+                  <td className="px-6 py-4">20-22</td>
+                  <td className="px-6 py-4">48-50</td>
+                  <td className="px-6 py-4">52-54</td>
+                  <td className="px-6 py-4">48-50</td>
+                  <td className="px-6 py-4">19-21</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium">XXL</td>
-                  <td className="px-6 py-4">111-116</td>
-                  <td className="px-6 py-4">44-46</td>
-                  <td className="px-6 py-4">81</td>
-                  <td className="px-6 py-4">71</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Bottoms Size Chart */}
-        <div className="mb-12">
-          <h2 className="font-heading text-2xl mb-6">Bottoms</h2>
-          <div className="bg-white overflow-x-auto">
-            <table className="w-full min-w-[600px]">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Size</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Waist (cm)</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Waist (in)</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hips (cm)</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Inseam (cm)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                <tr>
-                  <td className="px-6 py-4 font-medium">XS / 28</td>
-                  <td className="px-6 py-4">71-74</td>
-                  <td className="px-6 py-4">28-29</td>
-                  <td className="px-6 py-4">89-91</td>
-                  <td className="px-6 py-4">76</td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 font-medium">S / 30</td>
-                  <td className="px-6 py-4">76-79</td>
-                  <td className="px-6 py-4">30-31</td>
-                  <td className="px-6 py-4">94-97</td>
-                  <td className="px-6 py-4">78</td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 font-medium">M / 32</td>
-                  <td className="px-6 py-4">81-84</td>
-                  <td className="px-6 py-4">32-33</td>
-                  <td className="px-6 py-4">99-102</td>
-                  <td className="px-6 py-4">80</td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 font-medium">L / 34</td>
-                  <td className="px-6 py-4">86-89</td>
-                  <td className="px-6 py-4">34-35</td>
-                  <td className="px-6 py-4">104-107</td>
-                  <td className="px-6 py-4">81</td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 font-medium">XL / 36</td>
-                  <td className="px-6 py-4">91-94</td>
-                  <td className="px-6 py-4">36-37</td>
-                  <td className="px-6 py-4">109-112</td>
-                  <td className="px-6 py-4">81</td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 font-medium">XXL / 38</td>
-                  <td className="px-6 py-4">97-99</td>
-                  <td className="px-6 py-4">38-39</td>
-                  <td className="px-6 py-4">114-117</td>
-                  <td className="px-6 py-4">81</td>
+                  <td className="px-6 py-4">20</td>
+                  <td className="px-6 py-4">24</td>
+                  <td className="px-6 py-4">52</td>
+                  <td className="px-6 py-4">56</td>
+                  <td className="px-6 py-4">52</td>
+                  <td className="px-6 py-4">23</td>
                 </tr>
               </tbody>
             </table>

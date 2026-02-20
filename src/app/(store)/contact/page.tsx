@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Mail, Phone, MapPin, Send, Clock } from 'lucide-react';
+import { ChevronRight, Mail, Phone, Send, Clock } from 'lucide-react';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -60,8 +60,8 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-medium mb-1">Email</h3>
-                  <a href="mailto:hello@worldg3nius.com" className="text-gray-600 hover:text-primary">
-                    hello@worldg3nius.com
+                  <a href="mailto:worldgeniussbrand@gmail.com" className="text-gray-600 hover:text-primary">
+                    worldgeniussbrand@gmail.com
                   </a>
                 </div>
               </div>
@@ -72,22 +72,9 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-medium mb-1">Phone</h3>
-                  <a href="tel:+233201234567" className="text-gray-600 hover:text-primary">
-                    +233 20 123 4567
+                  <a href="tel:+233200239676" className="text-gray-600 hover:text-primary">
+                    +233 20 023 9676
                   </a>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="w-12 h-12 bg-primary text-white flex items-center justify-center flex-shrink-0">
-                  <MapPin className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-medium mb-1">Address</h3>
-                  <p className="text-gray-600">
-                    123 Independence Avenue<br />
-                    Accra, Ghana
-                  </p>
                 </div>
               </div>
 

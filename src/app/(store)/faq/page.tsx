@@ -15,7 +15,7 @@ const faqs = [
       },
       {
         question: 'Do you offer free shipping?',
-        answer: 'Yes! We offer free shipping on all orders over GHS 500 within Ghana. International orders over GHS 1,500 also qualify for free shipping.'
+        answer: 'Yes! We offer free shipping on all orders over GHS 800 within Ghana. International orders over GHS 2,500 also qualify for free shipping'
       },
       {
         question: 'Can I track my order?',
@@ -32,19 +32,19 @@ const faqs = [
     questions: [
       {
         question: 'What is your return policy?',
-        answer: 'We accept returns within 14 days of delivery. Items must be unworn, unwashed, and in their original packaging with all tags attached.'
+        answer: 'Items must be unworn, unwashed, and in their original packaging with all tags attached and returned within 48 hours. We want you to be completely satisfied with your purchase, so if something isn\'t right, we\'re here to help.'
       },
       {
         question: 'How do I initiate a return?',
-        answer: 'Contact our customer service team at support@worldg3nius.com with your order number. We\'ll provide you with return instructions and a prepaid shipping label for domestic returns.'
+        answer: 'Contact our customer service team at worldgeniussbrand@gmail.com with your order number. We\'ll provide you with return instructions and a prepaid shipping label for domestic returns.'
       },
       {
         question: 'Can I exchange an item for a different size?',
-        answer: 'Yes! If your size isn\'t right, we\'re happy to exchange it. Contact us within 14 days of receiving your order to arrange an exchange.'
+        answer: 'Yes! If your size isn\'t right, we\'re happy to exchange it. Contact us within 48 hours of receiving your order to arrange an exchange.'
       },
       {
         question: 'When will I receive my refund?',
-        answer: 'Refunds are processed within 5-7 business days after we receive your returned item. The refund will be credited to your original payment method.'
+        answer: 'We offer no refund policies at the moment.'
       }
     ]
   },
@@ -79,14 +79,6 @@ const faqs = [
       {
         question: 'Is my payment information secure?',
         answer: 'Yes, all transactions are encrypted and processed through secure payment gateways. We never store your full payment details.'
-      },
-      {
-        question: 'How do I apply a discount code?',
-        answer: 'Enter your discount code in the promo code field during checkout. The discount will be applied to your order total before payment.'
-      },
-      {
-        question: 'Do you offer student discounts?',
-        answer: 'Yes! Students get 10% off with a valid student ID. Contact us with proof of enrollment to receive your discount code.'
       }
     ]
   }
