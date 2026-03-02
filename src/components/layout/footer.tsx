@@ -109,7 +109,7 @@ export function Footer() {
               />
             </Link>
             <p className="text-white/70 text-sm leading-relaxed mb-6 max-w-xs">
-              Bold streetwear for the nonconformist. Designed in Ghana for the world.
+              World In Our Eyes
             </p>
             <div className="flex gap-4">
               <a
