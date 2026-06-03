@@ -1348,8 +1348,8 @@ input:where([type='file']):focus {
 .min-w-\[20px\] {
   min-width: 20px;
 }
-.min-w-\[600px\] {
-  min-width: 600px;
+.min-w-\[720px\] {
+  min-width: 720px;
 }
 .max-w-2xl {
   max-width: 42rem;

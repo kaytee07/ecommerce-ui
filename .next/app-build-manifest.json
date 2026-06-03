@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/(store)/page": [
+    "/(store)/collections/new-arrivals/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(store)/page.js"
+      "static/chunks/app/(store)/collections/new-arrivals/page.js"
     ],
     "/(store)/layout": [
       "static/chunks/webpack.js",
@@ -16,15 +16,50 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/(store)/shipping/page": [
+    "/(store)/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(store)/shipping/page.js"
+      "static/chunks/app/(store)/page.js"
     ],
-    "/(store)/returns/page": [
+    "/(auth)/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(store)/returns/page.js"
+      "static/chunks/app/(auth)/login/page.js"
+    ],
+    "/(auth)/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(auth)/layout.js"
+    ],
+    "/(store)/categories/[slug]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/categories/[slug]/page.js"
+    ],
+    "/(store)/products/[slug]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/products/[slug]/page.js"
+    ],
+    "/(store)/cart/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/cart/page.js"
+    ],
+    "/(store)/checkout/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/checkout/page.js"
+    ],
+    "/(store)/products/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/products/page.js"
+    ],
+    "/_not-found/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

@@ -1,4 +1,10 @@
 {
-  "/(store)/shipping/page": "app/(store)/shipping/page.js",
-  "/(store)/returns/page": "app/(store)/returns/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/(store)/page": "app/(store)/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(store)/checkout/page": "app/(store)/checkout/page.js",
+  "/(store)/products/[slug]/page": "app/(store)/products/[slug]/page.js",
+  "/(store)/categories/[slug]/page": "app/(store)/categories/[slug]/page.js",
+  "/(store)/cart/page": "app/(store)/cart/page.js",
+  "/(store)/products/page": "app/(store)/products/page.js"
 }

@@ -49,9 +49,19 @@ export interface RegisterRequest {
   fullName: string;
 }
 
-export interface AuthResponse {
+export interface TokenMetadata {
   expires_in: number;
   scope: string;
+}
+
+export interface AuthResponse {
+  token: TokenMetadata | null;
+  emailVerificationRequired: boolean;
+  redirectUrl: string | null;
+}
+
+export interface LoginResult extends AuthResponse {
+  message: string;
 }
 
 // Product Types
@@ -63,6 +73,7 @@ export interface Product {
   shortDescription?: string;
   price: number;
   compareAtPrice?: number;
+  gbpPrice?: number;
   costPrice?: number;
   // Storefront discount fields (backend ProductDTO)
   currentDiscountPercentage?: number;
@@ -231,8 +242,7 @@ export type OrderStatus =
   | 'PROCESSING'
   | 'SHIPPED'
   | 'DELIVERED'
-  | 'CANCELLED'
-  | 'REFUNDED';
+  | 'CANCELLED';
 
 export interface Order {
   id: string;
@@ -296,7 +306,7 @@ export interface ShippingAddress {
 }
 
 // Payment Types
-export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
+export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 export type PaymentGateway = 'HUBTEL' | 'PAYSTACK';
 
 export interface Payment {
@@ -310,14 +320,10 @@ export interface Payment {
   status: PaymentStatus;
   gateway: PaymentGateway;
   transactionRef: string;
-  idempotencyKey?: string;
   amount: number;
   currency: string;
   checkoutUrl?: string;
   failureReason?: string;
-  refundReason?: string;
-  refundedBy?: string;
-  refundedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -325,7 +331,7 @@ export interface Payment {
 export interface InitiatePaymentRequest {
   orderId: string;
   idempotencyKey: string;
-  callbackUrl?: string;
+  returnUrl?: string;
 }
 
 export interface RefundRequest {
