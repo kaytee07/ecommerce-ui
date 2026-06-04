@@ -2,6 +2,7 @@ node_modules
 .next
 .env*.local
 *.pem
+.DS_Store
 CLAUDE_CODE_FRONTEND_GUARDRAIL.md
 CLAUDE.md
 USER_FLOWS.md

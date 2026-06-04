@@ -7,11 +7,14 @@ import { SafeImage } from '@/components/ui';
 import { ArrowRight } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { Product, Category, Page, Inventory, StorefrontBanner } from '@/types';
-import { formatCurrency, getProductOriginalImageUrl, fetchBatchInventory } from '@/lib/utils';
+import { getProductOriginalImageUrl, fetchBatchInventory } from '@/lib/utils';
+import { toDisplayPrice } from '@/lib/utils/price';
+import { useRegion } from '@/lib/hooks/use-region';
 import { Skeleton } from '@/components/ui';
 import { enablePlaceholders } from '@/lib/config';
 
 export default function HomePage() {
+  const region = useRegion();
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
@@ -332,11 +335,11 @@ export default function HomePage() {
                       </h3>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">
-                          {formatCurrency(product.price)}
+                          {toDisplayPrice(product.price, region)}
                         </span>
                         {product.compareAtPrice && (
                           <span className="text-gray-400 line-through text-sm">
-                            {formatCurrency(product.compareAtPrice)}
+                            {toDisplayPrice(product.compareAtPrice, region)}
                           </span>
                         )}
                       </div>
@@ -478,7 +481,7 @@ export default function HomePage() {
                       {product.name}
                     </h3>
                     <span className="font-medium">
-                      {formatCurrency(product.price)}
+                      {toDisplayPrice(product.price, region)}
                     </span>
                     {/* Low Stock Warning */}
                     {isLowStock && !isOutOfStock && (

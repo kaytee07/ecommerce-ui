@@ -31,17 +31,15 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: ty
   SHIPPED: { label: 'Shipped', color: 'bg-green-100 text-green-800', icon: Truck },
   DELIVERED: { label: 'Delivered', color: 'bg-green-100 text-green-800', icon: CheckCircle },
   CANCELLED: { label: 'Cancelled', color: 'bg-gray-100 text-gray-800', icon: XCircle },
-  REFUNDED: { label: 'Refunded', color: 'bg-red-100 text-red-800', icon: XCircle },
 };
 
 const nextStatusOptions: Record<OrderStatus, OrderStatus[]> = {
   PENDING: ['CONFIRMED', 'CANCELLED'],
   CONFIRMED: ['PROCESSING', 'CANCELLED'],
-  PROCESSING: ['SHIPPED', 'CANCELLED'],
+  PROCESSING: ['SHIPPED'],
   SHIPPED: ['DELIVERED'],
   DELIVERED: [],
-  CANCELLED: ['REFUNDED'],
-  REFUNDED: [],
+  CANCELLED: [],
 };
 
 export default function AdminOrderDetailPage() {
@@ -266,12 +264,9 @@ export default function AdminOrderDetailPage() {
   const canUpdateStatus = !!permissions?.canViewAllOrders;
   const canCancel = !!permissions?.canCancelOrders;
   const canFulfill = !!permissions?.canFulfillOrders;
-          const canRefund = !!permissions?.canProcessRefunds;
-
   const availableStatusChanges = (nextStatusOptions[order.status] || []).filter((status) => {
     if (!canUpdateStatus) return false;
     if (status === 'CANCELLED') return canCancel;
-    if (status === 'REFUNDED') return canRefund;
     if (['PROCESSING', 'SHIPPED', 'DELIVERED'].includes(status)) return canFulfill;
     return true;
   });
@@ -413,7 +408,6 @@ export default function AdminOrderDetailPage() {
                   {status === 'SHIPPED' && 'Mark as Shipped'}
                   {status === 'DELIVERED' && 'Mark as Delivered'}
                   {status === 'CANCELLED' && 'Cancel Order'}
-                  {status === 'REFUNDED' && 'Issue Refund'}
                 </Button>
               ))}
 

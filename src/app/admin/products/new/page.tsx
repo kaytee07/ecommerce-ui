@@ -19,7 +19,6 @@ const productSchema = z.object({
   description: z.string().optional(),
   price: z.coerce.number().positive('Price must be positive'),
   compareAtPrice: z.coerce.number().positive().optional().or(z.literal('')),
-  gbpPrice: z.coerce.number().positive('GBP price must be positive').optional().or(z.literal('')),
   sku: z.string().min(1, 'SKU is required').max(100),
   categoryId: z.string().min(1, 'Category is required'),
   stockQuantity: z.coerce.number().int().min(0, 'Stock cannot be negative'),
@@ -93,7 +92,6 @@ export default function NewProductPage() {
         description: data.description,
         price: data.price,
         compareAtPrice: data.compareAtPrice || undefined,
-        gbpPrice: data.gbpPrice || undefined,
         sku: data.sku,
         categoryId: data.categoryId,
         attributes: attributes,
@@ -267,15 +265,6 @@ export default function NewProductPage() {
             placeholder="0.00 (optional)"
             error={errors.compareAtPrice?.message}
             {...register('compareAtPrice')}
-          />
-
-          <Input
-            label="UK Price (GBP £)"
-            type="number"
-            step="0.01"
-            placeholder="0.00 (optional — leave blank for Africa only)"
-            error={errors.gbpPrice?.message}
-            {...register('gbpPrice')}
           />
 
           <Input

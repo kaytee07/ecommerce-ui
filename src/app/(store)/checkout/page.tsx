@@ -8,15 +8,28 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useCartStore, useAuthStore } from '@/lib/stores';
 import { apiClient } from '@/lib/api/client';
 import { checkoutSchema, type CheckoutFormData } from '@/lib/validations';
-import { formatCurrency, getProductThumbnailUrl } from '@/lib/utils';
+import { getProductThumbnailUrl } from '@/lib/utils';
+import { toDisplayPrice, toGhsPrice } from '@/lib/utils/price';
+import { useRegion } from '@/lib/hooks/use-region';
 import { Button, Input, Skeleton } from '@/components/ui';
 import { Shield } from 'lucide-react';
 import { Product } from '@/types';
 
 export default function CheckoutPage() {
+  const buildGatewayReturnUrl = (orderId: string, storefrontPath: string) => {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+    const backendOrigin = apiBaseUrl.replace(/\/api\/v1\/?$/, '');
+    const redirectUrl = `${window.location.origin}${storefrontPath}`;
+    const params = new URLSearchParams({
+      orderId,
+      redirect: redirectUrl,
+    });
+    return `${backendOrigin}/api/v1/store/payments/return?${params.toString()}`;
+  };
   const router = useRouter();
   const { cart, fetchCart, isLoading } = useCartStore();
   const { isAuthenticated } = useAuthStore();
+  const region = useRegion();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [itemImages, setItemImages] = useState<Record<string, string>>({});
@@ -127,12 +140,12 @@ export default function CheckoutPage() {
         ? `/store/payments/${orderId}/initiate`
         : `/store/payments/${orderId}/initiate-guest`;
       const paymentPayload = isAuthenticated
-        ? { orderId, idempotencyKey, callbackUrl: `${window.location.origin}/account/orders/${orderId}?verify=true` }
+        ? { orderId, idempotencyKey, returnUrl: buildGatewayReturnUrl(orderId, `/account/orders/${orderId}`) }
         : {
             guestEmail,
             guestName,
             idempotencyKey,
-            callbackUrl: `${window.location.origin}/`,
+            returnUrl: buildGatewayReturnUrl(orderId, '/'),
           };
 
       const paymentResponse = await apiClient.post<{
@@ -333,7 +346,7 @@ export default function CheckoutPage() {
                       )}
                     </div>
                     <p className="text-sm font-medium text-gray-900">
-                      {formatCurrency(item.subtotal)}
+                      {toDisplayPrice(item.subtotal, region)}
                     </p>
                   </div>
                 ))}
@@ -342,19 +355,30 @@ export default function CheckoutPage() {
               <div className="space-y-3 border-t border-gray-200 pt-4 mb-6">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>{formatCurrency(cart.totalAmount)}</span>
+                  <span>{toDisplayPrice(cart.totalAmount, region)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Shipping</span>
-                  <span>Calculated</span>
+                  <span>Shipping{region.shippingLabel ? ` (${region.shippingLabel})` : ''}</span>
+                  <span>
+                    {region.freeShipping
+                      ? 'Free'
+                      : toDisplayPrice(region.shippingAmountGhs, region)}
+                  </span>
                 </div>
               </div>
 
               <div className="border-t border-gray-200 pt-4 mb-6">
                 <div className="flex justify-between text-lg font-semibold text-gray-900">
                   <span>Total</span>
-                  <span>{formatCurrency(cart.totalAmount)}</span>
+                  <span>
+                    {toDisplayPrice(cart.totalAmount + region.shippingAmountGhs, region)}
+                  </span>
                 </div>
+                {region.displayCurrency !== 'GHS' && (
+                  <p className="mt-2 text-xs text-gray-500 leading-relaxed">
+                    Charged as {toGhsPrice(cart.totalAmount + region.shippingAmountGhs)} by our payment processor; your bank converts to {region.displayCurrency}.
+                  </p>
+                )}
               </div>
 
               {error && (

@@ -30,7 +30,7 @@ interface Payment {
   amount: number;
   currency: string;
   gateway: string;
-  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
+  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
   transactionRef?: string;
   createdAt: string;
 }
@@ -39,7 +39,7 @@ const statusConfig = {
   PENDING: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
   SUCCESS: { label: 'Success', color: 'bg-green-100 text-green-800', icon: CheckCircle },
   FAILED: { label: 'Failed', color: 'bg-red-100 text-red-800', icon: XCircle },
-  REFUNDED: { label: 'Refunded', color: 'bg-gray-100 text-gray-800', icon: RefreshCcw },
+  CANCELLED: { label: 'Cancelled', color: 'bg-gray-100 text-gray-800', icon: XCircle },
 };
 
 export default function AdminPaymentsPage() {
@@ -110,6 +110,14 @@ export default function AdminPaymentsPage() {
     lastFetchKeyRef.current = key;
     fetchPayments();
   }, [statusFilter, user, permissions?.canViewPayments, router, fetchPayments]);
+
+  useEffect(() => {
+    if (!permissions?.canViewPayments) return;
+    const intervalId = window.setInterval(() => {
+      fetchPayments();
+    }, 30000);
+    return () => window.clearInterval(intervalId);
+  }, [permissions?.canViewPayments, fetchPayments]);
 
   useEffect(() => {
     const hasMissingUsernames = payments.some(
@@ -208,7 +216,7 @@ export default function AdminPaymentsPage() {
           <option value="PENDING">Pending</option>
           <option value="SUCCESS">Success</option>
           <option value="FAILED">Failed</option>
-          <option value="REFUNDED">Refunded</option>
+          <option value="CANCELLED">Cancelled</option>
         </select>
       </div>
 

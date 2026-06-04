@@ -36,16 +36,15 @@ export default function ReturnsPage() {
             <h2 className="font-heading text-2xl">Return Policy</h2>
           </div>
           <p className="text-gray-600 leading-relaxed mb-4">
-            Customer should contact worldgeniussbrand@gmail.com and express their desire for a return
-            in case of sizing misfits or unseen damage to product within 48 hours.
+            Contact worldgeniussbrand@gmail.com within 48 hours of delivery if you received a damaged
+            item, the wrong item, or need a size exchange.
           </p>
           <p className="text-gray-600 leading-relaxed mb-4">
-            No refunds.
+            We do not offer refunds.
           </p>
           <p className="text-gray-600 leading-relaxed">
             Items must be unworn, unwashed, and in their original packaging with all tags attached.
-            We want you to be completely satisfied with your purchase, so if something isn&apos;t right,
-            we&apos;re here to help.
+            Approved return or exchange requests are handled according to item condition and stock availability.
           </p>
         </div>
 

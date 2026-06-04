@@ -3,7 +3,9 @@
 import { SafeImage } from '@/components/ui';
 import Link from 'next/link';
 import { Product, Inventory } from '@/types';
-import { formatCurrency, getProductOriginalImageUrl } from '@/lib/utils';
+import { getProductOriginalImageUrl } from '@/lib/utils';
+import { toDisplayPrice } from '@/lib/utils/price';
+import { useRegion } from '@/lib/hooks/use-region';
 import { ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/lib/stores';
 import { useState } from 'react';
@@ -19,6 +21,7 @@ export function ProductCard({ product, showQuickAdd = true, inventory }: Product
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const { addItem } = useCartStore();
+  const region = useRegion();
   const hasOptions = Array.isArray((product.attributes as { options?: unknown } | undefined)?.options)
     && ((product.attributes as { options?: unknown }).options as unknown[]).length > 0;
 
@@ -120,11 +123,11 @@ export function ProductCard({ product, showQuickAdd = true, inventory }: Product
           </h3>
           <div className="mt-2 flex items-center gap-2">
             <span className="text-lg font-bold text-primary">
-              {formatCurrency(displayPrice)}
+              {toDisplayPrice(displayPrice, region)}
             </span>
             {hasDiscount && (
               <span className="text-sm text-gray-400 line-through">
-                {formatCurrency(product.price)}
+                {toDisplayPrice(product.price, region)}
               </span>
             )}
           </div>

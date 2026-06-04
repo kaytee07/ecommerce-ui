@@ -7,13 +7,16 @@ import { SafeImage } from '@/components/ui';
 import { Skeleton } from '@/components/ui';
 import { apiClient } from '@/lib/api/client';
 import { Product, Category, Inventory } from '@/types';
-import { formatCurrency, cn, getProductMainImageUrl, fetchBatchInventory } from '@/lib/utils';
+import { cn, getProductMainImageUrl, fetchBatchInventory } from '@/lib/utils';
+import { toDisplayPrice } from '@/lib/utils/price';
+import { useRegion } from '@/lib/hooks/use-region';
 import { SlidersHorizontal, X, ChevronDown } from 'lucide-react';
 import { enablePlaceholders } from '@/lib/config';
 
 function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const region = useRegion();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -325,11 +328,11 @@ function ProductsContent() {
                       </h3>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">
-                          {formatCurrency(product.price)}
+                          {toDisplayPrice(product.price, region)}
                         </span>
                         {product.compareAtPrice && (
                           <span className="text-gray-400 line-through text-sm">
-                            {formatCurrency(product.compareAtPrice)}
+                            {toDisplayPrice(product.compareAtPrice, region)}
                           </span>
                         )}
                       </div>

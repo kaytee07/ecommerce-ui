@@ -44,7 +44,7 @@ const faqs = [
       },
       {
         question: 'When will I receive my refund?',
-        answer: 'We offer no refund policies at the moment.'
+        answer: 'We do not offer refunds. If you receive the wrong item, a damaged item, or need a size exchange, contact worldgeniussbrand@gmail.com within 48 hours for assistance.'
       }
     ]
   },

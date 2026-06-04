@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types';
+import { User, LoginRequest, RegisterRequest, AuthResponse, LoginResult } from '@/types';
 import { apiClient } from '@/lib/api/client';
 
 interface AuthState {
@@ -10,7 +10,7 @@ interface AuthState {
   isRefreshing: boolean;
 
   setUser: (user: User | null) => void;
-  login: (credentials: LoginRequest) => Promise<AuthResponse>;
+  login: (credentials: LoginRequest) => Promise<LoginResult>;
   register: (data: RegisterRequest) => Promise<User>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
@@ -38,6 +38,14 @@ export const useAuthStore = create<AuthState>()(
           credentials
         );
 
+        if (response.data.data.emailVerificationRequired) {
+          set({ user: null, isAuthenticated: false, isLoading: false });
+          return {
+            ...response.data.data,
+            message: response.data.message,
+          };
+        }
+
         // After successful login, fetch user info
         // The access token is now in HttpOnly cookies, sent automatically
         try {
@@ -48,7 +56,10 @@ export const useAuthStore = create<AuthState>()(
           set({ isAuthenticated: true, isLoading: false });
         }
 
-        return response.data.data;
+        return {
+          ...response.data.data,
+          message: response.data.message,
+        };
       },
 
       register: async (data) => {

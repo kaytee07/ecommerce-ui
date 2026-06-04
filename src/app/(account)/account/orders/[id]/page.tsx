@@ -1,29 +1,55 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
 import { Order, Payment, Product } from '@/types';
 import { StatusBadge, Button, Skeleton } from '@/components/ui';
 import { formatCurrency, formatDate, getProductThumbnailUrl } from '@/lib/utils';
-import { ArrowLeft, CheckCircle, XCircle, Clock, CreditCard, Loader2, RefreshCcw, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, CreditCard, RefreshCcw, AlertCircle } from 'lucide-react';
 
 export default function OrderDetailPage() {
+  const getPaymentFailureMessage = (payment: Payment) => {
+    const reason = payment.failureReason?.trim();
+    if (!reason) {
+      return payment.status === 'CANCELLED'
+        ? 'Payment was cancelled. You can try again when ready.'
+        : 'Payment could not be completed. Please try again.';
+    }
+
+    const normalized = reason.toLowerCase();
+    if (payment.status === 'CANCELLED' || normalized.includes('cancel')) {
+      return 'Payment was cancelled. You can try again when ready.';
+    }
+
+    if (normalized.includes('403') || normalized.includes('forbidden') || normalized.includes('hubtel service unavailable')) {
+      return 'Payment could not be confirmed. Please try again.';
+    }
+
+    return reason;
+  };
+  const buildGatewayReturnUrl = (orderId: string) => {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+    const backendOrigin = apiBaseUrl.replace(/\/api\/v1\/?$/, '');
+    const redirectUrl = `${window.location.origin}/account/orders/${orderId}`;
+    const params = new URLSearchParams({
+      orderId,
+      redirect: redirectUrl,
+    });
+    return `${backendOrigin}/api/v1/store/payments/return?${params.toString()}`;
+  };
   const getItemKey = (item: { productId: string; selectedOptions?: Record<string, string> }) =>
     `${item.productId}-${JSON.stringify(item.selectedOptions || {})}`;
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const orderId = params.id as string;
 
   const [order, setOrder] = useState<Order | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [paymentVerified, setPaymentVerified] = useState(false);
   const [itemImages, setItemImages] = useState<Record<string, string>>({});
 
   const fetchOrder = useCallback(async () => {
@@ -55,32 +81,6 @@ export default function OrderDetailPage() {
       console.log('No payment found for order', err);
     }
   }, [orderId]);
-
-  const verifyPayment = useCallback(async () => {
-    if (!payment?.id || isVerifyingPayment) return;
-
-    setIsVerifyingPayment(true);
-    setPaymentError(null);
-
-    try {
-      const response = await apiClient.get<{ status: boolean; data: Payment; message: string }>(
-        `/store/payments/${payment.id}/verify`
-      );
-      setPayment(response.data.data);
-      setPaymentVerified(true);
-
-      // Refresh order to get updated status
-      if (response.data.data?.status === 'SUCCESS') {
-        await fetchOrder();
-      }
-    } catch (err: unknown) {
-      console.error('Failed to verify payment', err);
-      const error = err as { response?: { data?: { message?: string } } };
-      setPaymentError(error.response?.data?.message || 'Failed to verify payment status');
-    } finally {
-      setIsVerifyingPayment(false);
-    }
-  }, [payment?.id, isVerifyingPayment, fetchOrder]);
 
   useEffect(() => {
     fetchOrder();
@@ -133,13 +133,9 @@ export default function OrderDetailPage() {
     };
   }, [order?.items, itemImages]);
 
-  // Auto-verify payment when returning from payment gateway
-  useEffect(() => {
-    const shouldVerify = searchParams.get('verify') === 'true' || searchParams.get('status');
-    if (shouldVerify && payment?.status === 'PENDING') {
-      verifyPayment();
-    }
-  }, [payment?.status, searchParams, verifyPayment]);
+  const refreshPaymentStatus = async () => {
+    await Promise.all([fetchOrder(), fetchPayment()]);
+  };
 
   const initiatePayment = async () => {
     try {
@@ -150,7 +146,7 @@ export default function OrderDetailPage() {
       }>(`/store/payments/${orderId}/initiate`, {
         orderId,
         idempotencyKey: crypto.randomUUID(),
-        callbackUrl: `${window.location.origin}/account/orders/${orderId}?verify=true`,
+        returnUrl: buildGatewayReturnUrl(orderId),
       });
 
       if (response.data.data?.checkoutUrl) {
@@ -230,6 +226,7 @@ export default function OrderDetailPage() {
                   {payment.status === 'SUCCESS' && <CheckCircle className="h-4 w-4 inline mr-1" />}
                   {payment.status === 'PENDING' && <Clock className="h-4 w-4 inline mr-1" />}
                   {payment.status === 'FAILED' && <XCircle className="h-4 w-4 inline mr-1" />}
+                  {payment.status === 'CANCELLED' && <XCircle className="h-4 w-4 inline mr-1" />}
                   {payment.status}
                 </span>
               </div>
@@ -251,16 +248,9 @@ export default function OrderDetailPage() {
                 </div>
               )}
 
-              {payment.failureReason && (
+              {(payment.failureReason || payment.status === 'FAILED' || payment.status === 'CANCELLED') && (
                 <div className="mt-3 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-                  <strong>Failed:</strong> {payment.failureReason}
-                </div>
-              )}
-
-              {paymentVerified && payment.status === 'SUCCESS' && (
-                <div className="mt-3 p-3 bg-green-50 text-green-700 rounded-lg text-sm flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  Payment verified successfully
+                  <strong>{payment.status === 'CANCELLED' ? 'Cancelled:' : 'Failed:'}</strong> {getPaymentFailureMessage(payment)}
                 </div>
               )}
 
@@ -269,17 +259,12 @@ export default function OrderDetailPage() {
                 {payment.status === 'PENDING' && (
                   <>
                     <Button
-                      onClick={verifyPayment}
-                      disabled={isVerifyingPayment}
+                      onClick={refreshPaymentStatus}
                       variant="outline"
                       className="flex-1"
                     >
-                      {isVerifyingPayment ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <RefreshCcw className="h-4 w-4 mr-2" />
-                      )}
-                      Check Status
+                      <RefreshCcw className="h-4 w-4 mr-2" />
+                      Refresh Status
                     </Button>
                     {payment.checkoutUrl && (
                       <Button
@@ -291,10 +276,16 @@ export default function OrderDetailPage() {
                     )}
                   </>
                 )}
-                {payment.status === 'FAILED' && (
-                  <Button onClick={initiatePayment} className="flex-1">
-                    Retry Payment
-                  </Button>
+                {(payment.status === 'FAILED' || payment.status === 'CANCELLED') && (
+                  <div className="flex gap-3 w-full">
+                    <Button onClick={refreshPaymentStatus} variant="outline" className="flex-1">
+                      <RefreshCcw className="h-4 w-4 mr-2" />
+                      Refresh Status
+                    </Button>
+                    <Button onClick={initiatePayment} className="flex-1">
+                      Retry Payment
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

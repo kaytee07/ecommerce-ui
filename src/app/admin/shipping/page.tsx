@@ -15,7 +15,7 @@ interface ShippingRate {
 interface ShippingZone {
   id: string;
   name: string;
-  currency: string;
+  displayCurrency: string;
   countryCodes: string[];
   active: boolean;
   rates: ShippingRate[];
@@ -105,7 +105,7 @@ export default function ShippingSettingsPage() {
         {zones.map((zone) => {
           const rate = zone.rates?.[0];
           const isFree = !rate || parseFloat(String(rate.amount)) === 0;
-          const symbol = currencySymbol(zone.currency);
+          const symbol = currencySymbol(zone.displayCurrency);
 
           return (
             <div key={zone.id} className="bg-white rounded-lg border border-gray-200 p-6">
@@ -118,7 +118,7 @@ export default function ShippingSettingsPage() {
                   )}
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">{zone.name}</h2>
-                    <p className="text-sm text-gray-500">Currency: {zone.currency}</p>
+                    <p className="text-sm text-gray-500">Currency: {zone.displayCurrency}</p>
                   </div>
                 </div>
                 <span
@@ -136,7 +136,7 @@ export default function ShippingSettingsPage() {
                 <div className="flex items-end gap-4">
                   <div className="flex-1 max-w-xs">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Shipping Fee ({zone.currency})
+                      Shipping Fee ({zone.displayCurrency})
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">

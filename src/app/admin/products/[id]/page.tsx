@@ -20,7 +20,6 @@ const productSchema = z.object({
   description: z.string().optional(),
   price: z.coerce.number().positive('Price must be positive'),
   compareAtPrice: z.coerce.number().positive().optional().or(z.literal('')).or(z.literal(0)),
-  gbpPrice: z.coerce.number().positive('GBP price must be positive').optional().or(z.literal('')).or(z.literal(0)),
   sku: z.string().min(1, 'SKU is required').max(100),
   categoryId: z.string().min(1, 'Category is required'),
   active: z.boolean().default(true),
@@ -100,7 +99,6 @@ export default function EditProductPage() {
         description: productData.description || '',
         price: productData.price,
         compareAtPrice: productData.compareAtPrice || '',
-        gbpPrice: productData.gbpPrice || '',
         sku: productData.sku,
         categoryId: productData.categoryId,
         active: productData.active ?? true,
@@ -190,7 +188,6 @@ export default function EditProductPage() {
       const payload = {
         ...data,
         compareAtPrice: data.compareAtPrice || undefined,
-        gbpPrice: data.gbpPrice || undefined,
         attributes: mergedAttributes,
       };
       await apiClient.put(`/admin/products/${productId}`, payload);
@@ -502,15 +499,6 @@ export default function EditProductPage() {
             placeholder="0.00 (optional)"
             error={errors.compareAtPrice?.message}
             {...register('compareAtPrice')}
-          />
-
-          <Input
-            label="UK Price (GBP £)"
-            type="number"
-            step="0.01"
-            placeholder="0.00 (optional — leave blank for Africa only)"
-            error={errors.gbpPrice?.message}
-            {...register('gbpPrice')}
           />
 
           <div className="md:col-span-2 flex items-center gap-6">

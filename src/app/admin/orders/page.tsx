@@ -19,7 +19,6 @@ const STATUS_OPTIONS = [
   { value: 'SHIPPED', label: 'Shipped' },
   { value: 'DELIVERED', label: 'Delivered' },
   { value: 'CANCELLED', label: 'Cancelled' },
-  { value: 'REFUNDED', label: 'Refunded' },
 ];
 
 function OrdersContent() {

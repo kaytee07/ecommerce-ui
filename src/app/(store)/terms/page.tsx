@@ -101,11 +101,12 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="font-heading text-2xl mb-4">Returns and Refunds</h2>
+            <h2 className="font-heading text-2xl mb-4">Returns and Exchanges</h2>
             <p className="text-gray-600 leading-relaxed">
-              Returns and refunds are subject to our{' '}
+              We do not offer refunds. Limited returns or exchanges may be available for sizing issues,
+              incorrect items, or product damage as described in our{' '}
               <Link href="/returns" className="text-primary underline">Returns Policy</Link>.
-              Please review this policy before making a purchase.
+              Please review that policy before making a purchase.
             </p>
           </section>
 

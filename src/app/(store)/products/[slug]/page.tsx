@@ -8,13 +8,16 @@ import { apiClient } from '@/lib/api/client';
 import { Product, Inventory, ProductOption } from '@/types';
 import { useCartStore } from '@/lib/stores';
 import { Skeleton } from '@/components/ui';
-import { formatCurrency, cn, getProductImageMap, getProductThumbnailUrl } from '@/lib/utils';
+import { cn, getProductImageMap, getProductThumbnailUrl } from '@/lib/utils';
+import { toDisplayPrice } from '@/lib/utils/price';
+import { useRegion } from '@/lib/hooks/use-region';
 import { Minus, Plus, Check, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { enablePlaceholders } from '@/lib/config';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const region = useRegion();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -316,11 +319,11 @@ export default function ProductDetailPage() {
 
               <div className="flex items-center gap-4">
                 <span className="font-heading text-2xl">
-                  {formatCurrency(product.effectivePrice || product.price)}
+                  {toDisplayPrice(product.effectivePrice || product.price, region)}
                 </span>
                 {product.compareAtPrice && (
                   <span className="text-gray-400 line-through">
-                    {formatCurrency(product.compareAtPrice)}
+                    {toDisplayPrice(product.compareAtPrice, region)}
                   </span>
                 )}
                 {product.discountPercentage && (
@@ -559,7 +562,7 @@ export default function ProductDetailPage() {
                       {relatedProduct.name}
                     </h3>
                     <span className="font-medium">
-                      {formatCurrency(relatedProduct.price)}
+                      {toDisplayPrice(relatedProduct.price, region)}
                     </span>
                   </div>
                 </Link>

@@ -73,7 +73,6 @@ export interface Product {
   shortDescription?: string;
   price: number;
   compareAtPrice?: number;
-  gbpPrice?: number;
   costPrice?: number;
   // Storefront discount fields (backend ProductDTO)
   currentDiscountPercentage?: number;

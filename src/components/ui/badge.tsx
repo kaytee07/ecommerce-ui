@@ -42,7 +42,6 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     SHIPPED: 'bg-emerald-100 text-emerald-800',
     DELIVERED: 'bg-green-100 text-green-800',
     CANCELLED: 'bg-gray-100 text-gray-800',
-    REFUNDED: 'bg-red-100 text-red-800',
   };
 
   const statusLabels: Record<OrderStatus, string> = {
@@ -52,7 +51,6 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     SHIPPED: 'Shipped',
     DELIVERED: 'Delivered',
     CANCELLED: 'Cancelled',
-    REFUNDED: 'Refunded',
   };
 
   return (

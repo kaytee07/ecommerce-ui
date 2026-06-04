@@ -27,6 +27,7 @@ import {
   Settings,
   Image as ImageIcon,
   Truck,
+  Coins,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,6 +41,7 @@ const navItems = [
   { href: '/admin/customers', label: 'Customers', icon: Users, permission: 'canViewUsers' },
   { href: '/admin/storefront', label: 'Storefront', icon: ImageIcon, permission: 'canManageStorefront' },
   { href: '/admin/shipping', label: 'Shipping', icon: Truck, permission: 'canManageStorefront' },
+  { href: '/admin/settings/fx-rates', label: 'FX Rates', icon: Coins, permission: 'canManageFxRates' },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3, permission: 'canViewAnalytics' },
   { href: '/admin/notifications', label: 'Notifications', icon: Bell, permission: 'canViewNotifications' },
   { href: '/admin/audit-logs', label: 'Audit Logs', icon: ClipboardList, permission: 'canViewAuditLogs' },

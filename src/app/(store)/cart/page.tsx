@@ -5,7 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCartStore, useAuthStore } from '@/lib/stores';
 import { apiClient } from '@/lib/api/client';
-import { formatCurrency, getProductThumbnailUrl, fetchBatchInventory } from '@/lib/utils';
+import { getProductThumbnailUrl, fetchBatchInventory } from '@/lib/utils';
+import { toDisplayPrice, toGhsPrice } from '@/lib/utils/price';
+import { useRegion } from '@/lib/hooks/use-region';
 import { Product, Inventory } from '@/types';
 import { Button, EmptyCart, Skeleton } from '@/components/ui';
 import { Minus, Plus, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
@@ -13,6 +15,7 @@ import { Minus, Plus, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
 export default function CartPage() {
   const { cart, isLoading, error, fetchCart, updateQuantity, removeItem, clearError } = useCartStore();
   const { isAuthenticated } = useAuthStore();
+  const region = useRegion();
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
   const [itemImages, setItemImages] = useState<Record<string, string>>({});
   const [inventoryMap, setInventoryMap] = useState<Map<string, Inventory>>(new Map());
@@ -236,7 +239,7 @@ export default function CartPage() {
                     {item.productName}
                   </p>
                   <p className={`font-semibold mt-1 ${isOutOfStock ? 'text-gray-400' : 'text-primary'}`}>
-                    {formatCurrency(item.priceAtAdd)}
+                    {toDisplayPrice(item.priceAtAdd, region)}
                   </p>
                   {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
                     <div className="mt-2 text-xs text-gray-500 space-y-1">
@@ -291,7 +294,7 @@ export default function CartPage() {
                 {/* Subtotal */}
                 <div className="text-right">
                   <p className={`font-semibold ${isOutOfStock ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-                    {formatCurrency(item.subtotal)}
+                    {toDisplayPrice(item.subtotal, region)}
                   </p>
                 </div>
               </div>
@@ -307,7 +310,7 @@ export default function CartPage() {
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal ({cart.itemCount} items)</span>
-                <span>{formatCurrency(cart.totalAmount)}</span>
+                <span>{toDisplayPrice(cart.totalAmount, region)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Shipping</span>
@@ -318,8 +321,13 @@ export default function CartPage() {
             <div className="border-t border-gray-200 pt-4 mb-6">
               <div className="flex justify-between text-lg font-semibold text-gray-900">
                 <span>Total</span>
-                <span>{formatCurrency(cart.totalAmount)}</span>
+                <span>{toDisplayPrice(cart.totalAmount, region)}</span>
               </div>
+              {region.displayCurrency !== 'GHS' && cart.totalAmount > 0 && (
+                <p className="mt-2 text-xs text-gray-500 leading-relaxed">
+                  Charged as {toGhsPrice(cart.totalAmount)} by our payment processor; your bank converts to {region.displayCurrency}.
+                </p>
+              )}
             </div>
 
             {hasOutOfStockItems ? (

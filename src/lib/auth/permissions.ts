@@ -51,7 +51,6 @@ export function getPermissions(roles: string[]) {
 
     // Payment management
     canViewPayments: hasAnyRole(roles, [ROLES.SUPPORT_AGENT, ROLES.CONTENT_MANAGER, ROLES.SUPER_ADMIN]),
-    canProcessRefunds: hasAnyRole(roles, [ROLES.SUPPORT_AGENT, ROLES.CONTENT_MANAGER, ROLES.SUPER_ADMIN]),
 
     // User management
     canViewUsers: hasAnyRole(roles, [ROLES.ADMIN, ROLES.SUPPORT_AGENT, ROLES.SUPER_ADMIN]),
@@ -67,6 +66,9 @@ export function getPermissions(roles: string[]) {
 
     // Storefront content
     canManageStorefront: hasAnyRole(roles, [ROLES.ADMIN, ROLES.SUPER_ADMIN]),
+
+    // FX rates (ADMIN — directly controls buyer-facing display prices)
+    canManageFxRates: hasRole(roles, ROLES.ADMIN),
 
     // Notifications
     canViewNotifications: hasAnyRole(roles, [

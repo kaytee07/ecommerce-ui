@@ -17,6 +17,9 @@ function LoginForm() {
   const redirect = searchParams.get('redirect') || '/';
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(
+    searchParams.get('verified') === 'true' ? 'Email verified successfully. Please sign in.' : null
+  );
 
   const { login } = useAuthStore();
 
@@ -30,8 +33,20 @@ function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     setError(null);
+    setMessage(null);
     try {
-      await login(data);
+      const result = await login(data);
+
+      if (result.emailVerificationRequired) {
+        setMessage(result.message);
+
+        if (result.redirectUrl) {
+          window.location.href = result.redirectUrl;
+        }
+
+        return;
+      }
+
       router.push(redirect);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } }; code?: string };
@@ -57,6 +72,12 @@ function LoginForm() {
       {error && (
         <div className="mb-4 p-4 bg-error-bg text-error rounded-lg text-sm">
           {error}
+        </div>
+      )}
+
+      {message && (
+        <div className="mb-4 p-4 bg-success-bg text-success rounded-lg text-sm">
+          {message}
         </div>
       )}
 
