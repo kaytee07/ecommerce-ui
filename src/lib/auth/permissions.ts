@@ -67,8 +67,8 @@ export function getPermissions(roles: string[]) {
     // Storefront content
     canManageStorefront: hasAnyRole(roles, [ROLES.ADMIN, ROLES.SUPER_ADMIN]),
 
-    // FX rates (ADMIN — directly controls buyer-facing display prices)
-    canManageFxRates: hasRole(roles, ROLES.ADMIN),
+    // FX rates (ADMIN or SUPER_ADMIN — directly controls buyer-facing display prices)
+    canManageFxRates: hasAnyRole(roles, [ROLES.ADMIN, ROLES.SUPER_ADMIN]),
 
     // Notifications
     canViewNotifications: hasAnyRole(roles, [
