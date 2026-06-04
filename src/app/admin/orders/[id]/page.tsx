@@ -20,6 +20,7 @@ import {
   FileText,
   MapPin,
   Image as ImageIcon,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
 import { getPermissions } from '@/lib/auth/permissions';
@@ -31,6 +32,7 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: ty
   SHIPPED: { label: 'Shipped', color: 'bg-green-100 text-green-800', icon: Truck },
   DELIVERED: { label: 'Delivered', color: 'bg-green-100 text-green-800', icon: CheckCircle },
   CANCELLED: { label: 'Cancelled', color: 'bg-gray-100 text-gray-800', icon: XCircle },
+  REFUNDED: { label: 'Refunded', color: 'bg-slate-100 text-slate-800', icon: RotateCcw },
 };
 
 const nextStatusOptions: Record<OrderStatus, OrderStatus[]> = {
@@ -39,7 +41,8 @@ const nextStatusOptions: Record<OrderStatus, OrderStatus[]> = {
   PROCESSING: ['SHIPPED'],
   SHIPPED: ['DELIVERED'],
   DELIVERED: [],
-  CANCELLED: [],
+  CANCELLED: ['REFUNDED'],
+  REFUNDED: [],
 };
 
 export default function AdminOrderDetailPage() {
