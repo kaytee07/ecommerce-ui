@@ -15,7 +15,7 @@ interface ShippingRate {
 interface ShippingZone {
   id: string;
   name: string;
-  displayCurrency: string;
+  shippingCurrency: string;
   countryCodes: string[];
   active: boolean;
   rates: ShippingRate[];
@@ -75,9 +75,6 @@ export default function ShippingSettingsPage() {
     }
   };
 
-  const currencySymbol = (currency: string) =>
-    currency === 'GBP' ? '£' : currency === 'GHS' ? '₵' : currency;
-
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -101,8 +98,8 @@ export default function ShippingSettingsPage() {
       <div className="space-y-4">
         {zones.map((zone) => {
           const rate = zone.rates?.[0];
-          const symbol = currencySymbol(zone.displayCurrency);
-
+          const shippingCurrency = zone.shippingCurrency || 'GHS';
+          const currencySymbol = shippingCurrency === 'GHS' ? '₵' : shippingCurrency;
           return (
             <div key={zone.id} className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-start justify-between mb-4">
@@ -116,7 +113,7 @@ export default function ShippingSettingsPage() {
                     <h2 className="text-lg font-semibold text-gray-900">
                       {zone.name === 'Africa' ? 'Ghana' : 'United Kingdom'}
                     </h2>
-                    <p className="text-sm text-gray-500">Currency: {zone.displayCurrency}</p>
+                    <p className="text-sm text-gray-500">Shipping currency: {shippingCurrency}</p>
                   </div>
                 </div>
                 <span
@@ -134,7 +131,7 @@ export default function ShippingSettingsPage() {
                 <div className="flex items-end gap-4">
                   <div className="flex-1 max-w-xs">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {zone.name === 'Africa' ? 'Shipping Fee (Free)' : `Shipping Fee (${zone.displayCurrency})`}
+                      {zone.name === 'Africa' ? 'Shipping Fee (Free)' : `Shipping Fee (${shippingCurrency})`}
                     </label>
                     {zone.name === 'Africa' ? (
                       <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
@@ -143,7 +140,7 @@ export default function ShippingSettingsPage() {
                     ) : (
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
-                          {symbol}
+                          {currencySymbol}
                         </span>
                         <input
                           type="number"

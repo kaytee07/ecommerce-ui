@@ -29,9 +29,10 @@ export function useRegion(selectedCountryCode?: string): Region {
       const res = await apiClient.get<ApiResponse<Region>>('/store/region', { params });
       return res.data.data;
     },
-    staleTime: 30 * 60 * 1000,
+    staleTime: selectedCountryCode ? 0 : 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
     retry: 1,
+    refetchOnMount: selectedCountryCode ? 'always' : true,
   });
 
   return data ?? FALLBACK;

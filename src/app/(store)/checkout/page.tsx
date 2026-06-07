@@ -55,6 +55,13 @@ export default function CheckoutPage() {
   const selectedCountry = watch('shippingAddress.country');
   const region = useRegion(selectedCountry || undefined);
   const createAccount = watch('createAccount');
+  const normalizedCountry = selectedCountry?.toUpperCase();
+  const isGhana = normalizedCountry === 'GH';
+  const isUnitedKingdom = normalizedCountry === 'GB';
+  const shippingAmountGhs = isUnitedKingdom ? region.shippingAmountGhs : 0;
+  const shippingLabel = isGhana ? 'Free Shipping' : isUnitedKingdom ? 'Shipping Fee (GHS)' : 'Shipping';
+  const shippingDisplay = isGhana ? 'Free' : isUnitedKingdom ? toGhsPrice(shippingAmountGhs) : 'Free';
+  const totalAmountGhs = cart.totalAmount + shippingAmountGhs;
   useEffect(() => {
     fetchCart();
   }, [isAuthenticated, fetchCart]);
@@ -365,20 +372,18 @@ export default function CheckoutPage() {
                   <span>{toDisplayPrice(cart.totalAmount, region)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>{region.freeShipping ? 'Free Shipping' : 'Shipping Fee (GHS)'}</span>
-                  <span>{region.freeShipping ? 'Free' : toGhsPrice(region.shippingAmountGhs)}</span>
+                  <span>{shippingLabel}</span>
+                  <span>{shippingDisplay}</span>
                 </div>
               </div>
 
               <div className="border-t border-gray-200 pt-4 mb-6">
                 <div className="flex justify-between text-lg font-semibold text-gray-900">
                   <span>Total</span>
-                  <span>
-                    {toGhsPrice(cart.totalAmount + region.shippingAmountGhs)}
-                  </span>
+                  <span>{toGhsPrice(totalAmountGhs)}</span>
                 </div>
                 <p className="mt-2 text-xs text-gray-500 leading-relaxed">
-                  Charged as {toGhsPrice(cart.totalAmount + region.shippingAmountGhs)} by our payment processor.
+                  Charged as {toGhsPrice(totalAmountGhs)} by our payment processor.
                 </p>
               </div>
 
