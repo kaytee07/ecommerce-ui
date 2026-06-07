@@ -22,17 +22,20 @@ const FALLBACK: Region = {
  * Cached per country selection — region doesn't change mid-browsing.
  */
 export function useRegion(selectedCountryCode?: string): Region {
+  const requestedCountryCode = selectedCountryCode?.toUpperCase();
   const { data } = useQuery({
-    queryKey: ['region', selectedCountryCode ?? 'ip'],
+    queryKey: ['region', requestedCountryCode ?? 'ip'],
     queryFn: async () => {
-      const params = selectedCountryCode ? { countryCode: selectedCountryCode } : undefined;
-      const res = await apiClient.get<ApiResponse<Region>>('/store/region', { params });
+      const endpoint = requestedCountryCode
+        ? `/store/region?countryCode=${encodeURIComponent(requestedCountryCode)}`
+        : '/store/region';
+      const res = await apiClient.get<ApiResponse<Region>>(endpoint);
       return res.data.data;
     },
-    staleTime: selectedCountryCode ? 0 : 30 * 60 * 1000,
+    staleTime: requestedCountryCode ? 0 : 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
     retry: 1,
-    refetchOnMount: selectedCountryCode ? 'always' : true,
+    refetchOnMount: requestedCountryCode ? 'always' : true,
   });
 
   return data ?? FALLBACK;

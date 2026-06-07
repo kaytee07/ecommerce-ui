@@ -56,11 +56,19 @@ export default function CheckoutPage() {
   const region = useRegion(selectedCountry || undefined);
   const createAccount = watch('createAccount');
   const normalizedCountry = selectedCountry?.toUpperCase();
+  const resolvedCountry = region.countryCode?.toUpperCase();
+  const regionMatchesSelectedCountry = !!normalizedCountry && resolvedCountry === normalizedCountry;
   const isGhana = normalizedCountry === 'GH';
   const isUnitedKingdom = normalizedCountry === 'GB';
-  const shippingAmountGhs = isUnitedKingdom ? region.shippingAmountGhs : 0;
+  const shippingAmountGhs = isUnitedKingdom && regionMatchesSelectedCountry ? region.shippingAmountGhs : 0;
   const shippingLabel = isGhana ? 'Free Shipping' : isUnitedKingdom ? 'Shipping Fee (GHS)' : 'Shipping';
-  const shippingDisplay = isGhana ? 'Free' : isUnitedKingdom ? toGhsPrice(shippingAmountGhs) : 'Free';
+  const shippingDisplay = isGhana
+    ? 'Free'
+    : isUnitedKingdom
+      ? regionMatchesSelectedCountry
+        ? toGhsPrice(shippingAmountGhs)
+        : 'Updating...'
+      : 'Free';
   const totalAmountGhs = (cart?.totalAmount ?? 0) + shippingAmountGhs;
   useEffect(() => {
     fetchCart();
