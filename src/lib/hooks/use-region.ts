@@ -27,7 +27,7 @@ export function useRegion(selectedCountryCode?: string): Region {
     queryKey: ['region', requestedCountryCode ?? 'ip'],
     queryFn: async () => {
       const endpoint = requestedCountryCode
-        ? `/store/region?countryCode=${encodeURIComponent(requestedCountryCode)}`
+        ? `/store/region?countryCode=${encodeURIComponent(requestedCountryCode)}&_t=${Date.now()}`
         : '/store/region';
       const res = await apiClient.get<ApiResponse<Region>>(endpoint);
       return res.data.data;
