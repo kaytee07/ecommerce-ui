@@ -365,12 +365,8 @@ export default function CheckoutPage() {
                   <span>{toDisplayPrice(cart.totalAmount, region)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Shipping{region.shippingLabel ? ` (${region.shippingLabel})` : ''}</span>
-                  <span>
-                    {region.freeShipping
-                      ? 'Free'
-                      : toDisplayPrice(region.shippingAmountGhs, region)}
-                  </span>
+                  <span>{region.freeShipping ? 'Free Shipping' : 'Shipping Fee (GHS)'}</span>
+                  <span>{region.freeShipping ? 'Free' : toGhsPrice(region.shippingAmountGhs)}</span>
                 </div>
               </div>
 
@@ -378,14 +374,12 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-lg font-semibold text-gray-900">
                   <span>Total</span>
                   <span>
-                    {toDisplayPrice(cart.totalAmount + region.shippingAmountGhs, region)}
+                    {toGhsPrice(cart.totalAmount + region.shippingAmountGhs)}
                   </span>
                 </div>
-                {region.displayCurrency !== 'GHS' && (
-                  <p className="mt-2 text-xs text-gray-500 leading-relaxed">
-                    Charged as {toGhsPrice(cart.totalAmount + region.shippingAmountGhs)} by our payment processor; your bank converts to {region.displayCurrency}.
-                  </p>
-                )}
+                <p className="mt-2 text-xs text-gray-500 leading-relaxed">
+                  Charged as {toGhsPrice(cart.totalAmount + region.shippingAmountGhs)} by our payment processor.
+                </p>
               </div>
 
               {error && (
