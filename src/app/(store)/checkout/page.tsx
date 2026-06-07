@@ -61,7 +61,7 @@ export default function CheckoutPage() {
   const shippingAmountGhs = isUnitedKingdom ? region.shippingAmountGhs : 0;
   const shippingLabel = isGhana ? 'Free Shipping' : isUnitedKingdom ? 'Shipping Fee (GHS)' : 'Shipping';
   const shippingDisplay = isGhana ? 'Free' : isUnitedKingdom ? toGhsPrice(shippingAmountGhs) : 'Free';
-  const totalAmountGhs = cart.totalAmount + shippingAmountGhs;
+  const totalAmountGhs = (cart?.totalAmount ?? 0) + shippingAmountGhs;
   useEffect(() => {
     fetchCart();
   }, [isAuthenticated, fetchCart]);
