@@ -4,7 +4,9 @@ export const shippingAddressSchema = z.object({
   street: z.string().min(1, 'Street address is required'),
   city: z.string().min(1, 'City is required'),
   region: z.string().min(1, 'Region/State is required'),
-  country: z.string().min(1, 'Country is required'),
+  country: z.enum(['GH', 'GB'], {
+    message: 'Please select a country',
+  }),
   postalCode: z.string().optional(),
   phone: z.string().min(1, 'Phone number is required'),
   gps: z.string().optional(),

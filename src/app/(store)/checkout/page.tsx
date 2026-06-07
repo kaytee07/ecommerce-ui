@@ -11,9 +11,14 @@ import { checkoutSchema, type CheckoutFormData } from '@/lib/validations';
 import { getProductThumbnailUrl } from '@/lib/utils';
 import { toDisplayPrice, toGhsPrice } from '@/lib/utils/price';
 import { useRegion } from '@/lib/hooks/use-region';
-import { Button, Input, Skeleton } from '@/components/ui';
+import { Button, Input, Select, Skeleton } from '@/components/ui';
 import { Shield } from 'lucide-react';
 import { Product } from '@/types';
+
+const COUNTRY_OPTIONS = [
+  { value: 'GH', label: 'Ghana' },
+  { value: 'GB', label: 'United Kingdom' },
+];
 
 export default function CheckoutPage() {
   const buildGatewayReturnUrl = (orderId: string, storefrontPath: string) => {
@@ -29,7 +34,6 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { cart, fetchCart, isLoading } = useCartStore();
   const { isAuthenticated } = useAuthStore();
-  const region = useRegion();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [itemImages, setItemImages] = useState<Record<string, string>>({});
@@ -48,6 +52,8 @@ export default function CheckoutPage() {
     },
   });
 
+  const selectedCountry = watch('shippingAddress.country');
+  const region = useRegion(selectedCountry || undefined);
   const createAccount = watch('createAccount');
   useEffect(() => {
     fetchCart();
@@ -266,10 +272,11 @@ export default function CheckoutPage() {
                   {...register('shippingAddress.region')}
                 />
 
-                <Input
+                <Select
                   label="Country"
-                  placeholder="Ghana"
+                  placeholder="Select country"
                   error={errors.shippingAddress?.country?.message}
+                  options={COUNTRY_OPTIONS}
                   {...register('shippingAddress.country')}
                 />
 

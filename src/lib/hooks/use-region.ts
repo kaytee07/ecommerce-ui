@@ -18,14 +18,15 @@ const FALLBACK: Region = {
 };
 
 /**
- * Resolves the buyer's region from their IP for currency display + shipping.
- * Cached for the session — region doesn't change mid-browsing.
+ * Resolves the buyer's region from their IP or a selected checkout country.
+ * Cached per country selection — region doesn't change mid-browsing.
  */
-export function useRegion(): Region {
+export function useRegion(selectedCountryCode?: string): Region {
   const { data } = useQuery({
-    queryKey: ['region'],
+    queryKey: ['region', selectedCountryCode ?? 'ip'],
     queryFn: async () => {
-      const res = await apiClient.get<ApiResponse<Region>>('/store/region');
+      const params = selectedCountryCode ? { countryCode: selectedCountryCode } : undefined;
+      const res = await apiClient.get<ApiResponse<Region>>('/store/region', { params });
       return res.data.data;
     },
     staleTime: 30 * 60 * 1000,
