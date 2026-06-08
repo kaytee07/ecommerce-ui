@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { SUPPORTED_COUNTRY_CODES } from '@/lib/constants/countries';
 
 export const shippingAddressSchema = z.object({
   street: z.string().min(1, 'Street address is required'),
   city: z.string().min(1, 'City is required'),
   region: z.string().min(1, 'Region/State is required'),
-  country: z.enum(['GH', 'GB'], {
+  country: z.enum(SUPPORTED_COUNTRY_CODES, {
     message: 'Please select a country',
   }),
   postalCode: z.string().optional(),

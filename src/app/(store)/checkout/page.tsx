@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCartStore, useAuthStore } from '@/lib/stores';
 import { apiClient } from '@/lib/api/client';
+import { SUPPORTED_COUNTRY_OPTIONS } from '@/lib/constants/countries';
 import { checkoutSchema, type CheckoutFormData } from '@/lib/validations';
 import { getProductThumbnailUrl } from '@/lib/utils';
 import { toDisplayPrice, toGhsPrice } from '@/lib/utils/price';
@@ -14,11 +15,6 @@ import { useRegion } from '@/lib/hooks/use-region';
 import { Button, Input, Select, Skeleton } from '@/components/ui';
 import { Shield } from 'lucide-react';
 import { Product } from '@/types';
-
-const COUNTRY_OPTIONS = [
-  { value: 'GH', label: 'Ghana' },
-  { value: 'GB', label: 'United Kingdom' },
-];
 
 export default function CheckoutPage() {
   const buildGatewayReturnUrl = (orderId: string, storefrontPath: string) => {
@@ -59,16 +55,13 @@ export default function CheckoutPage() {
   const resolvedCountry = region.countryCode?.toUpperCase();
   const regionMatchesSelectedCountry = !!normalizedCountry && resolvedCountry === normalizedCountry;
   const isGhana = normalizedCountry === 'GH';
-  const isUnitedKingdom = normalizedCountry === 'GB';
-  const shippingAmountGhs = isUnitedKingdom && regionMatchesSelectedCountry ? region.shippingAmountGhs : 0;
-  const shippingLabel = isGhana ? 'Free Shipping' : isUnitedKingdom ? 'Shipping Fee (GHS)' : 'Shipping';
+  const shippingAmountGhs = !isGhana && regionMatchesSelectedCountry ? region.shippingAmountGhs : 0;
+  const shippingLabel = isGhana ? 'Shipping' : 'Shipping Fee (GHS)';
   const shippingDisplay = isGhana
-    ? 'Free'
-    : isUnitedKingdom
-      ? regionMatchesSelectedCountry
-        ? toGhsPrice(shippingAmountGhs)
-        : 'Updating...'
-      : 'Free';
+    ? 'Pay on delivery'
+    : regionMatchesSelectedCountry
+      ? toGhsPrice(shippingAmountGhs)
+      : 'Updating...';
   const totalAmountGhs = (cart?.totalAmount ?? 0) + shippingAmountGhs;
   useEffect(() => {
     fetchCart();
@@ -291,7 +284,7 @@ export default function CheckoutPage() {
                   label="Country"
                   placeholder="Select country"
                   error={errors.shippingAddress?.country?.message}
-                  options={COUNTRY_OPTIONS}
+                  options={SUPPORTED_COUNTRY_OPTIONS}
                   {...register('shippingAddress.country')}
                 />
 
