@@ -11,7 +11,7 @@ import { SUPPORTED_COUNTRY_OPTIONS } from '@/lib/constants/countries';
 import { checkoutSchema, type CheckoutFormData } from '@/lib/validations';
 import { getProductThumbnailUrl } from '@/lib/utils';
 import { toDisplayPrice, toGhsPrice } from '@/lib/utils/price';
-import { useRegion } from '@/lib/hooks/use-region';
+import { useRegionQuery } from '@/lib/hooks/use-region';
 import { Button, Input, Select, Skeleton } from '@/components/ui';
 import { Shield } from 'lucide-react';
 import { Product } from '@/types';
@@ -49,19 +49,20 @@ export default function CheckoutPage() {
   });
 
   const selectedCountry = watch('shippingAddress.country');
-  const region = useRegion(selectedCountry || undefined);
+  const { region, isLoading: isRegionLoading, isFetching: isRegionFetching } = useRegionQuery(
+    selectedCountry || undefined
+  );
   const createAccount = watch('createAccount');
   const normalizedCountry = selectedCountry?.toUpperCase();
-  const resolvedCountry = region.countryCode?.toUpperCase();
-  const regionMatchesSelectedCountry = !!normalizedCountry && resolvedCountry === normalizedCountry;
   const isGhana = normalizedCountry === 'GH';
-  const shippingAmountGhs = !isGhana && regionMatchesSelectedCountry ? region.shippingAmountGhs : 0;
+  const shippingQueryPending = !isGhana && (isRegionLoading || isRegionFetching);
+  const shippingAmountGhs = !isGhana && !shippingQueryPending ? region.shippingAmountGhs : 0;
   const shippingLabel = isGhana ? 'Shipping' : 'Shipping Fee (GHS)';
   const shippingDisplay = isGhana
     ? 'Pay on delivery'
-    : regionMatchesSelectedCountry
-      ? toGhsPrice(shippingAmountGhs)
-      : 'Updating...';
+    : shippingQueryPending
+      ? 'Updating...'
+      : toGhsPrice(shippingAmountGhs);
   const totalAmountGhs = (cart?.totalAmount ?? 0) + shippingAmountGhs;
   useEffect(() => {
     fetchCart();
