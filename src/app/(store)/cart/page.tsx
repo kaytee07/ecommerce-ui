@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useCartStore, useAuthStore } from '@/lib/stores';
 import { apiClient } from '@/lib/api/client';
 import { getProductThumbnailUrl, fetchBatchInventory } from '@/lib/utils';
@@ -13,6 +14,7 @@ import { Button, EmptyCart, Skeleton } from '@/components/ui';
 import { Minus, Plus, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
 
 export default function CartPage() {
+  const router = useRouter();
   const { cart, isLoading, error, fetchCart, updateQuantity, removeItem, clearError } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const region = useRegion();
@@ -21,6 +23,7 @@ export default function CartPage() {
   const [inventoryMap, setInventoryMap] = useState<Map<string, Inventory>>(new Map());
   const [stockWarnings, setStockWarnings] = useState<Map<string, string>>(new Map());
   const getItemKey = (item: { itemKey?: string; productId: string }) => item.itemKey || item.productId;
+  const hasPendingCartUpdates = updatingItems.size > 0;
 
   useEffect(() => {
     fetchCart();
@@ -335,12 +338,15 @@ export default function CartPage() {
                 Remove Out of Stock Items
               </Button>
             ) : (
-              <Link href="/checkout">
-                <Button className="w-full" size="lg">
-                  Proceed to Checkout
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => router.push('/checkout')}
+                disabled={hasPendingCartUpdates}
+              >
+                {hasPendingCartUpdates ? 'Saving quantity...' : 'Proceed to Checkout'}
+                {!hasPendingCartUpdates && <ArrowRight className="ml-2 h-5 w-5" />}
+              </Button>
             )}
 
             <Link
