@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCartStore, useAuthStore } from '@/lib/stores';
 import { apiClient } from '@/lib/api/client';
@@ -37,6 +37,7 @@ export default function CheckoutPage() {
 
   const {
     register,
+    control,
     handleSubmit,
     watch,
     formState: { errors },
@@ -55,10 +56,10 @@ export default function CheckoutPage() {
   const createAccount = watch('createAccount');
   const normalizedCountry = selectedCountry?.toUpperCase();
   const isGhana = normalizedCountry === 'GH';
-  const itemCount = cart?.itemCount ?? 0;
+  const totalQuantity = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
   const shippingQueryPending = !isGhana && (isRegionLoading || isRegionFetching);
   const baseShippingAmountGhs = !isGhana && !shippingQueryPending ? region.shippingAmountGhs : 0;
-  const shippingSurchargeGhs = !isGhana && itemCount > 1 ? (itemCount - 1) * 200 : 0;
+  const shippingSurchargeGhs = !isGhana && totalQuantity > 1 ? (totalQuantity - 1) * 200 : 0;
   const shippingAmountGhs = isGhana ? 0 : baseShippingAmountGhs + shippingSurchargeGhs;
   const shippingLabel = isGhana ? 'Shipping' : 'Shipping Fee (GHS)';
   const shippingDisplay = isGhana
@@ -284,12 +285,22 @@ export default function CheckoutPage() {
                   {...register('shippingAddress.region')}
                 />
 
-                <Select
-                  label="Country"
-                  placeholder="Select country"
-                  error={errors.shippingAddress?.country?.message}
-                  options={[...SUPPORTED_COUNTRY_OPTIONS]}
-                  {...register('shippingAddress.country')}
+                <Controller
+                  control={control}
+                  name="shippingAddress.country"
+                  render={({ field }) => (
+                    <Select
+                      label="Country"
+                      placeholder="Select country"
+                      error={errors.shippingAddress?.country?.message}
+                      options={[...SUPPORTED_COUNTRY_OPTIONS]}
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                    />
+                  )}
                 />
 
                 <Input

@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { Cart, CartItem } from '@/types';
 import { apiClient } from '@/lib/api/client';
 
+const getTotalQuantity = (items: CartItem[]) => items.reduce((sum, item) => sum + item.quantity, 0);
+
 interface CartState {
   cart: Cart | null;
   isLoading: boolean;
@@ -69,6 +71,13 @@ export const useCartStore = create<CartState>((set, get) => ({
             ? { ...item, quantity, subtotal: item.priceAtAdd * quantity }
             : item
         ),
+        itemCount: getTotalQuantity(
+          previousCart.items.map((item) =>
+            matchesItem(item)
+              ? { ...item, quantity }
+              : item
+          )
+        ),
         totalAmount: previousCart.items.reduce((sum, item) => {
           if (matchesItem(item)) {
             return sum + item.priceAtAdd * quantity;
@@ -103,7 +112,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         cart: {
           ...previousCart,
           items: filteredItems,
-          itemCount: filteredItems.length,
+          itemCount: getTotalQuantity(filteredItems),
           totalAmount: filteredItems.reduce((sum, item) => sum + item.subtotal, 0),
         },
       });
