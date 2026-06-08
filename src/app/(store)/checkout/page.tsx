@@ -284,7 +284,7 @@ export default function CheckoutPage() {
                   label="Country"
                   placeholder="Select country"
                   error={errors.shippingAddress?.country?.message}
-                  options={SUPPORTED_COUNTRY_OPTIONS}
+                  options={[...SUPPORTED_COUNTRY_OPTIONS]}
                   {...register('shippingAddress.country')}
                 />
 
