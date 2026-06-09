@@ -45,7 +45,7 @@ export default function CheckoutPage() {
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
       shippingAddress: {
-        country: '',
+        country: undefined,
       },
       createAccount: false,
     },
@@ -293,7 +293,7 @@ export default function CheckoutPage() {
                 <Controller
                   control={control}
                   name="shippingAddress.country"
-                  defaultValue=""
+                  defaultValue={undefined}
                   render={({ field }) => (
                     <Select
                       label="Country"
