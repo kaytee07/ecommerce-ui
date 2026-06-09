@@ -60,16 +60,21 @@ export default function CheckoutPage() {
   );
   const createAccount = watch('createAccount');
   const normalizedCountry = selectedCountry?.toUpperCase();
+  const hasSelectedCountry = Boolean(normalizedCountry);
   const isGhana = normalizedCountry === 'GH';
   const itemCount = cart?.itemCount ?? 0;
   const additionalItemShippingFeeGhs = 200;
-  const shippingQueryPending = !isGhana && (isRegionLoading || isRegionFetching);
-  const baseShippingAmountGhs = !isGhana && !shippingQueryPending ? region.shippingAmountGhs : 0;
-  const shippingAmountGhs = isGhana
+  const shippingQueryPending = hasSelectedCountry && !isGhana && (isRegionLoading || isRegionFetching);
+  const baseShippingAmountGhs = hasSelectedCountry && !isGhana && !shippingQueryPending ? region.shippingAmountGhs : 0;
+  const shippingAmountGhs = !hasSelectedCountry
+    ? 0
+    : isGhana
     ? 0
     : baseShippingAmountGhs + Math.max(itemCount - 1, 0) * additionalItemShippingFeeGhs;
   const shippingLabel = isGhana ? 'Shipping' : 'Shipping Fee (GHS)';
-  const shippingDisplay = isGhana
+  const shippingDisplay = !hasSelectedCountry
+    ? toGhsPrice(0)
+    : isGhana
     ? 'Pay on delivery'
     : shippingQueryPending
       ? 'Updating...'
