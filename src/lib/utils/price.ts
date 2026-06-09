@@ -1,29 +1,29 @@
 import type { Region } from '@/types/region';
 
 /**
- * Convert a GHS amount to the buyer's display currency.
- * GHS-on-GHS returns the original amount; everything else multiplies by fxRate.
+ * Keep storefront amounts in GHS.
+ * The backend still resolves region and FX data, but the UI should remain
+ * cedis-only for the buyer-facing price display.
  */
 export function toDisplayAmount(amountGhs: number, region: Region): number {
-  if (region.displayCurrency === 'GHS') return amountGhs;
-  return Number((amountGhs * region.fxRate).toFixed(2));
+  void region;
+  return amountGhs;
 }
 
 /**
- * Format a GHS amount as the buyer's local currency string.
+ * Format a GHS amount as a cedi string for the storefront.
  *
- *   toDisplayPrice(200, { displayCurrency: 'GBP', fxRate: 0.05, ... }) → '£10.00'
- *   toDisplayPrice(200, { displayCurrency: 'GHS', fxRate: 1, ... })    → 'GH₵200.00'
+ *   toDisplayPrice(200, ...) → 'GH₵200.00'
  */
 export function toDisplayPrice(amountGhs: number, region: Region): string {
   const amount = toDisplayAmount(amountGhs, region);
   try {
-    return new Intl.NumberFormat(localeFor(region.displayCurrency), {
+    return new Intl.NumberFormat('en-GH', {
       style: 'currency',
-      currency: region.displayCurrency,
+      currency: 'GHS',
     }).format(amount);
   } catch {
-    return `${region.displayCurrency} ${amount.toFixed(2)}`;
+    return `GHS ${amount.toFixed(2)}`;
   }
 }
 
@@ -44,18 +44,6 @@ export function toGhsPrice(amountGhs: number): string {
 
 function localeFor(currency: string): string {
   switch (currency.toUpperCase()) {
-    case 'GBP':
-      return 'en-GB';
-    case 'USD':
-      return 'en-US';
-    case 'EUR':
-      return 'en-IE';
-    case 'NGN':
-      return 'en-NG';
-    case 'KES':
-      return 'en-KE';
-    case 'ZAR':
-      return 'en-ZA';
     case 'GHS':
     default:
       return 'en-GH';

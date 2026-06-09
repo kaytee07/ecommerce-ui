@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCartStore, useAuthStore } from '@/lib/stores';
 import { apiClient } from '@/lib/api/client';
@@ -44,12 +44,17 @@ export default function CheckoutPage() {
   } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      shippingAddress: {},
+      shippingAddress: {
+        country: '',
+      },
       createAccount: false,
     },
   });
 
-  const selectedCountry = watch('shippingAddress.country');
+  const selectedCountry = useWatch({
+    control,
+    name: 'shippingAddress.country',
+  });
   const { region, isLoading: isRegionLoading, isFetching: isRegionFetching } = useRegionQuery(
     selectedCountry || undefined
   );
@@ -288,6 +293,7 @@ export default function CheckoutPage() {
                 <Controller
                   control={control}
                   name="shippingAddress.country"
+                  defaultValue=""
                   render={({ field }) => (
                     <Select
                       label="Country"
