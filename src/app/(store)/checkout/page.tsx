@@ -61,11 +61,13 @@ export default function CheckoutPage() {
   const createAccount = watch('createAccount');
   const normalizedCountry = selectedCountry?.toUpperCase();
   const isGhana = normalizedCountry === 'GH';
-  const totalQuantity = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+  const itemCount = cart?.itemCount ?? 0;
+  const additionalItemShippingFeeGhs = 200;
   const shippingQueryPending = !isGhana && (isRegionLoading || isRegionFetching);
   const baseShippingAmountGhs = !isGhana && !shippingQueryPending ? region.shippingAmountGhs : 0;
-  const shippingSurchargeGhs = !isGhana && totalQuantity > 1 ? (totalQuantity - 1) * 200 : 0;
-  const shippingAmountGhs = isGhana ? 0 : baseShippingAmountGhs + shippingSurchargeGhs;
+  const shippingAmountGhs = isGhana
+    ? 0
+    : baseShippingAmountGhs + Math.max(itemCount - 1, 0) * additionalItemShippingFeeGhs;
   const shippingLabel = isGhana ? 'Shipping' : 'Shipping Fee (GHS)';
   const shippingDisplay = isGhana
     ? 'Pay on delivery'
